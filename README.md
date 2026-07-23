@@ -69,7 +69,6 @@ cp .env.example .env
 | SUB2API_URL | sub2api Web 地址（健康检查） | http://127.0.0.1:9898 |
 | SUB2API_GROK_GROUP_ID | **导入目标分组 ID**（必填，见下文） | 空，需自行填写 |
 | SUB2API_GROK_GROUP_NAME | 分组名称，须与后台一致 | grok |
-| SUB2API_GROK_GROUP_ID / NAME | sub2api 中的 Grok 分组 | 23 / grok |
 | UPSTREAM_ADMIN_EMAIL | sub2api 管理员邮箱 | — |
 | UPSTREAM_ADMIN_PASSWORD | sub2api 管理员密码（仅本地 `.env`） | — |
 

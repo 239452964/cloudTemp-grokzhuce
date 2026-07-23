@@ -489,14 +489,14 @@
                     <div class="grid grid-cols-2 gap-3">
                       <div>
                         <label class="field-label" for="cfgSub2GroupId">SUB2API_GROK_GROUP_ID</label>
-                        <input id="cfgSub2GroupId" class="field font-mono text-sm" placeholder="23" autocomplete="off" />
+                        <input id="cfgSub2GroupId" class="field font-mono text-sm" placeholder="留空自动解析" autocomplete="off" />
                       </div>
                       <div>
                         <label class="field-label" for="cfgSub2GroupName">SUB2API_GROK_GROUP_NAME</label>
                         <input id="cfgSub2GroupName" class="field font-mono text-sm" placeholder="grok" autocomplete="off" />
                       </div>
                     </div>
-                    <p class="text-[11px] text-ink-700/45 -mt-1">ID 与名称须与 sub2api 后台 Grok 分组完全一致（连通性测试会校验）</p>
+                    <p class="text-[11px] text-ink-700/45 -mt-1">ID 可留空，导入前会按名称自动解析；填写 ID 时会与名称一并校验</p>
                     <div>
                       <label class="field-label" for="cfgUpstreamEmail">UPSTREAM_ADMIN_EMAIL</label>
                       <input id="cfgUpstreamEmail" class="field font-mono text-sm" placeholder="管理员邮箱" autocomplete="username" />
@@ -1151,7 +1151,7 @@
         $('cfgUiHost').value = c.UI_HOST || '127.0.0.1';
         $('cfgUiPort').value = c.UI_PORT || '3333';
         if ($('cfgUpstreamUrl')) $('cfgUpstreamUrl').value = c.SUB2API_URL || c.UPSTREAM_URL || 'http://127.0.0.1:9898';
-        if ($('cfgSub2GroupId')) $('cfgSub2GroupId').value = c.SUB2API_GROK_GROUP_ID || '23';
+        if ($('cfgSub2GroupId')) $('cfgSub2GroupId').value = c.SUB2API_GROK_GROUP_ID || '';
         if ($('cfgSub2GroupName')) $('cfgSub2GroupName').value = c.SUB2API_GROK_GROUP_NAME || 'grok';
         if ($('cfgUpstreamEmail')) $('cfgUpstreamEmail').value = c.UPSTREAM_ADMIN_EMAIL || '';
         if ($('cfgUpstreamPwd')) $('cfgUpstreamPwd').value = c.UPSTREAM_ADMIN_PASSWORD || '';

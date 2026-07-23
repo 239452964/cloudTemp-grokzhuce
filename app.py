@@ -104,7 +104,7 @@ DEFAULTS = {
     "UI_HOST": "127.0.0.1",
     "UI_PORT": "3333",
     "SUB2API_URL": "http://127.0.0.1:9898",
-    "SUB2API_GROK_GROUP_ID": "23",
+    "SUB2API_GROK_GROUP_ID": "",
     "SUB2API_GROK_GROUP_NAME": "grok",
     "UPSTREAM_URL": "http://127.0.0.1:9898",
     "UPSTREAM_ADMIN_EMAIL": "",
@@ -214,7 +214,7 @@ def env_snapshot():
     sub2_url = sub2["url"]
     configured = bool(
         sub2_url
-        and sub2["group_id"]
+        and sub2["group_name"]
         and sub2["admin_email"]
         and sub2["admin_password"]
     )
@@ -915,15 +915,102 @@ def sub2api_import_auth_entry(
     return {"ok": True, "id": data.get("id"), "action": "inserted", "group_id": group_id, "email": email or None, "user_id": user_id or None, "auth_key": auth_key, "expires_at": credentials.get("expires_at") or "", "has_refresh_token": bool(credentials.get("refresh_token"))}
 
 
+def resolve_sub2api_grok_group(
+    *,
+    token: str,
+    base_url: str,
+    group_id: str = "",
+    group_name: str = "grok",
+) -> dict:
+    """按配置 ID 校验或按 Grok 分组名称解析实际 ID。"""
+    requested_id = (group_id or "").strip()
+    requested_name = (group_name or "").strip()
+    if requested_id and not requested_id.isdigit():
+        return {"ok": False, "error": "SUB2API_GROK_GROUP_ID 必须是数字"}
+    if not requested_name:
+        return {"ok": False, "error": "请填写 SUB2API_GROK_GROUP_NAME"}
+
+    response = sub2api_http_request(
+        "GET",
+        "/api/v1/admin/groups",
+        token=token,
+        base_url=base_url,
+        params={"platform": "grok", "page": 1, "page_size": 50},
+        timeout=15,
+    )
+    data = response.get("data") or {}
+    groups = data.get("items") if isinstance(data, dict) else []
+    if not response.get("ok") or not isinstance(groups, list):
+        return {"ok": False, "error": f"读取分组失败: {response.get('error')}"}
+
+    wanted_name = requested_name.lower()
+    group_by_name = next(
+        (
+            item
+            for item in groups
+            if isinstance(item, dict)
+            and str(item.get("name") or "").strip().lower() == wanted_name
+        ),
+        None,
+    )
+    if not requested_id:
+        if group_by_name is None:
+            return {"ok": False, "error": f"未找到 Grok 分组名称：{requested_name}"}
+        return {
+            "ok": True,
+            "group_id": int(group_by_name.get("id") or 0),
+            "group_name": group_by_name.get("name") or requested_name,
+            "group": group_by_name,
+            "resolved_by": "name",
+        }
+
+    numeric_id = int(requested_id)
+    group_by_id = next(
+        (
+            item
+            for item in groups
+            if isinstance(item, dict) and int(item.get("id") or 0) == numeric_id
+        ),
+        None,
+    )
+    if group_by_id is None and group_by_name is not None:
+        return {
+            "ok": False,
+            "error": (
+                f"分组 ID 不匹配：名称 {group_by_name.get('name')} 的实际 ID 是 "
+                f"{group_by_name.get('id')}，请更新 SUB2API_GROK_GROUP_ID"
+            ),
+        }
+    if group_by_id is None:
+        return {"ok": False, "error": f"未找到 Grok 分组 ID：{requested_id}"}
+    actual_name = str(group_by_id.get("name") or "").strip()
+    if actual_name.lower() != wanted_name:
+        return {
+            "ok": False,
+            "error": (
+                f"分组名称不匹配：ID {requested_id} 对应 {actual_name}，"
+                f"配置要求 {requested_name}"
+            ),
+        }
+    return {
+        "ok": True,
+        "group_id": numeric_id,
+        "group_name": actual_name,
+        "group": group_by_id,
+        "resolved_by": "id",
+    }
+
+
 def test_upstream_connectivity(
     base_url: str | None = None,
     password: str | None = None,
     email: str | None = None,
+    cfg: dict | None = None,
 ) -> dict:
     """验证 sub2api HTTP 健康检查、管理员登录和目标分组。"""
     import requests
 
-    cfg = get_sub2api_config()
+    cfg = dict(cfg or get_sub2api_config())
     base = normalize_upstream_url(base_url if base_url is not None else cfg["url"])
     if email is not None:
         cfg["admin_email"] = email.strip()
@@ -931,10 +1018,6 @@ def test_upstream_connectivity(
         cfg["admin_password"] = password
     if not base:
         return {"ok": False, "message": "请先填写 SUB2API_URL"}
-    try:
-        group_id = int(cfg["group_id"])
-    except (TypeError, ValueError):
-        return {"ok": False, "message": "SUB2API_GROK_GROUP_ID 必须是数字", "base_url": base}
     try:
         health_response = _sub2api_http_session().get(f"{base}/health", timeout=6)
         health = health_response.json() if health_response.status_code == 200 else None
@@ -950,30 +1033,34 @@ def test_upstream_connectivity(
     login = sub2api_http_login(base_url=base, cfg=cfg)
     if not login.get("ok"):
         return {"ok": False, "message": login.get("error") or "管理员登录失败", "base_url": base, "health": health}
-    response = sub2api_http_request(
-        "GET",
-        "/api/v1/admin/groups",
+    group_result = resolve_sub2api_grok_group(
         token=login["access_token"],
         base_url=base,
-        params={"platform": "grok", "page": 1, "page_size": 50},
-        timeout=15,
+        group_id=cfg.get("group_id") or "",
+        group_name=cfg.get("group_name") or "grok",
     )
-    data = response.get("data") or {}
-    groups = data.get("items") if isinstance(data, dict) else []
-    if not response.get("ok") or not isinstance(groups, list):
-        return {"ok": False, "message": f"读取分组失败: {response.get('error')}", "base_url": base, "health": health}
-    wanted_name = cfg["group_name"].strip().lower()
-    group = next((item for item in groups if isinstance(item, dict) and int(item.get("id") or 0) == group_id), None)
-    if group is None:
-        group = next((item for item in groups if isinstance(item, dict) and str(item.get("name") or "").strip().lower() == wanted_name), None)
-    if group is None:
-        return {"ok": False, "message": f"sub2api Grok 分组未匹配：id={group_id}, name={cfg['group_name']}", "base_url": base, "health": health}
+    if not group_result.get("ok"):
+        return {
+            "ok": False,
+            "message": group_result.get("error") or "未解析到 Grok 分组",
+            "base_url": base,
+            "health": health,
+        }
+    group = group_result["group"]
     return {
         "ok": True,
-        "message": f"sub2api HTTP 连通正常，已登录并可访问 Grok 分组 {group.get('name')}({group.get('id')})",
+        "message": (
+            f"sub2api HTTP 连通正常，已登录并可访问 Grok 分组 "
+            f"{group_result['group_name']}({group_result['group_id']})"
+        ),
         "base_url": base,
         "health": health,
-        "group": {"group_id": group.get("id"), "group_name": group.get("name"), "platform": group.get("platform")},
+        "group": {
+            "group_id": group_result["group_id"],
+            "group_name": group_result["group_name"],
+            "platform": group.get("platform"),
+            "resolved_by": group_result["resolved_by"],
+        },
     }
 
 
@@ -1106,8 +1193,8 @@ def import_sso_to_upstream(
     items = _normalize_import_accounts(sso_lines=sso_lines, accounts=accounts)
     if not items:
         return {"ok": False, "message": "没有可导入的 SSO"}
-    if not sub2.get("url") or not sub2.get("group_id"):
-        return {"ok": False, "message": "请先配置 SUB2API_URL 与 SUB2API_GROK_GROUP_ID"}
+    if not sub2.get("url") or not sub2.get("group_name"):
+        return {"ok": False, "message": "请先配置 SUB2API_URL 与 SUB2API_GROK_GROUP_NAME"}
     if not sub2.get("admin_email") or not sub2.get("admin_password"):
         return {"ok": False, "message": "请先配置 UPSTREAM_ADMIN_EMAIL 与 UPSTREAM_ADMIN_PASSWORD"}
 
@@ -1116,6 +1203,15 @@ def import_sso_to_upstream(
         return {"ok": False, "message": login.get("error") or "sub2api 管理员登录失败"}
     api_token = login["access_token"]
     api_base = login["base_url"]
+    group_result = resolve_sub2api_grok_group(
+        token=api_token,
+        base_url=api_base,
+        group_id=sub2.get("group_id") or "",
+        group_name=sub2.get("group_name") or "grok",
+    )
+    if not group_result.get("ok"):
+        return {"ok": False, "message": group_result.get("error") or "未解析到 sub2api Grok 分组"}
+    sub2["group_id"] = str(group_result["group_id"])
 
     results_by_idx: dict[int, dict] = {}
     imported: list[dict] = []
@@ -1860,10 +1956,16 @@ def upstream_test():
         pwd = None
     if email is not None and str(email).strip() == "":
         email = None
+    cfg = get_sub2api_config()
+    if "SUB2API_GROK_GROUP_ID" in body:
+        cfg["group_id"] = str(body.get("SUB2API_GROK_GROUP_ID") or "").strip()
+    if "SUB2API_GROK_GROUP_NAME" in body:
+        cfg["group_name"] = str(body.get("SUB2API_GROK_GROUP_NAME") or "").strip()
     result = test_upstream_connectivity(
         base_url=str(base).strip() if base is not None else None,
         password=str(pwd) if pwd is not None else None,
         email=str(email).strip() if email is not None else None,
+        cfg=cfg,
     )
     code = 200 if result.get("ok") else 502
     return jsonify(result), code

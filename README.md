@@ -67,8 +67,8 @@ cp .env.example .env
 | UI_HOST | Web 监听地址 | 127.0.0.1 |
 | UI_PORT | Web 端口 | 3333 |
 | SUB2API_URL | sub2api Web 地址（健康检查） | http://127.0.0.1:9898 |
-| SUB2API_GROK_GROUP_ID | **导入目标分组 ID**（必填，见下文） | 空，需自行填写 |
-| SUB2API_GROK_GROUP_NAME | 分组名称，须与后台一致 | grok |
+| SUB2API_GROK_GROUP_ID | 导入目标分组 ID；留空时按名称自动解析 | 空 |
+| SUB2API_GROK_GROUP_NAME | 导入目标分组名称（必填，须与后台一致） | grok |
 | UPSTREAM_ADMIN_EMAIL | sub2api 管理员邮箱 | — |
 | UPSTREAM_ADMIN_PASSWORD | sub2api 管理员密码（仅本地 `.env`） | — |
 

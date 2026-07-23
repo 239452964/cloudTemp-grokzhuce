@@ -11,32 +11,32 @@
         extend: {
           colors: {
             paper: {
-              50: '#fbfaf7',
-              100: '#f4f1ea',
-              200: '#e8e2d6',
-              300: '#d5cdb8',
+              50: '#f8fafc',
+              100: '#f1f4f8',
+              200: '#e4e9f0',
+              300: '#ced6e1',
             },
             ink: {
-              700: '#3f3a33',
-              800: '#2a261f',
-              900: '#1a1712',
+              700: '#667085',
+              800: '#344054',
+              900: '#182230',
             },
             brand: {
-              50: '#eff8ff',
-              100: '#dbeefe',
-              500: '#2f80ed',
-              600: '#1f6fd6',
-              700: '#1857ab',
+              50: '#eff4ff',
+              100: '#dbe8ff',
+              500: '#2f6fed',
+              600: '#215bd7',
+              700: '#1b4bb5',
             },
             leaf: {
-              500: '#1f9d63',
-              600: '#178451',
+              500: '#12a276',
+              600: '#087f5b',
             },
             sun: {
-              500: '#d97706',
+              500: '#b77911',
             },
             rose: {
-              500: '#e11d48',
+              500: '#d64545',
             }
           },
           fontFamily: {
@@ -45,8 +45,8 @@
             mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
           },
           boxShadow: {
-            soft: '0 10px 30px rgba(42, 38, 31, 0.06)',
-            card: '0 1px 0 rgba(255,255,255,0.8) inset, 0 12px 32px rgba(42, 38, 31, 0.07)',
+            soft: '0 8px 24px rgba(16, 24, 40, 0.06)',
+            card: '0 1px 0 rgba(255,255,255,0.8) inset, 0 8px 24px rgba(16, 24, 40, 0.05)',
           }
         }
       }
@@ -56,87 +56,119 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
+    :root {
+      --canvas: #f7f8fa;
+      --surface: #ffffff;
+      --surface-muted: #f1f4f8;
+      --line: #e1e6ed;
+      --ink: #182230;
+      --muted: #697586;
+      --teal: #2f6fed;
+      --teal-soft: #eff4ff;
+      --coral: #d64545;
+      --gold: #b77911;
+      --console: #172033;
+    }
+    * { box-sizing: border-box; }
     body {
-      background:
-        radial-gradient(900px 420px at 0% 0%, rgba(47, 128, 237, 0.10), transparent 55%),
-        radial-gradient(700px 380px at 100% 10%, rgba(31, 157, 99, 0.08), transparent 50%),
-        linear-gradient(180deg, #fbfaf7 0%, #f3f0e8 100%);
-      color: #1a1712;
+      background: var(--canvas);
+      color: var(--ink);
+      letter-spacing: 0;
     }
+    .font-display { font-family: "Manrope", system-ui, sans-serif !important; }
+    .app-shell { max-width: 90rem; }
+    .app-header {
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      color: var(--ink);
+    }
+    .app-header .text-ink-900 { color: var(--ink); }
+    .app-header .text-ink-700, .app-header .text-ink-700\/60 { color: var(--muted); }
+    .brand-mark {
+      width: 2.2rem;
+      height: 2.2rem;
+      display: grid;
+      place-items: center;
+      border: 1px solid #215bd7;
+      border-radius: 6px;
+      background: #2f6fed;
+      color: #fff;
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+    .status-badge {
+      border-color: #d9e0e8 !important;
+      background: #f8fafc !important;
+      box-shadow: none !important;
+    }
+    .status-badge .text-ink-700 { color: #475467; }
     .panel {
-      background: rgba(255, 255, 255, 0.86);
-      border: 1px solid rgba(42, 38, 31, 0.08);
-      box-shadow: 0 12px 32px rgba(42, 38, 31, 0.06);
-      backdrop-filter: blur(10px);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: 0 1px 2px rgba(16,24,40,.025);
+      border-radius: 6px !important;
     }
+    .rounded-xl, .rounded-2xl { border-radius: 6px !important; }
     .field {
       width: 100%;
-      border-radius: 0.9rem;
-      border: 1.5px solid #ddd5c6;
+      border-radius: 6px;
+      border: 1px solid #d0d8e2;
       background: #fff;
-      padding: 0.7rem 0.9rem;
-      font-size: 0.9rem;
-      color: #1a1712;
+      padding: .66rem .75rem;
+      font-size: .875rem;
+      color: var(--ink);
       outline: none;
       transition: border-color .15s, box-shadow .15s, background .15s;
     }
-    .field:hover { border-color: #c9bea8; }
+    .field:hover { border-color: #aebbd0; }
     .field:focus {
-      border-color: #2f80ed;
-      box-shadow: 0 0 0 4px rgba(47, 128, 237, 0.12);
-      background: #fff;
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(47,111,237,.14);
     }
-    .field:disabled {
-      background: #f4f1ea;
-      color: #8a8376;
-      cursor: not-allowed;
-    }
+    .field:disabled { background: var(--surface-muted); color: #98a2b3; cursor: not-allowed; }
     .field-label {
       display: block;
-      margin-bottom: 0.4rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      color: #6b6458;
+      margin-bottom: .35rem;
+      font-size: .6875rem;
+      font-weight: 700;
+      letter-spacing: 0;
+      color: var(--muted);
     }
-    /* custom select */
     .c-select { position: relative; }
     .c-select-btn {
       width: 100%;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.75rem;
-      border-radius: 0.9rem;
-      border: 1.5px solid #ddd5c6;
+      gap: .75rem;
+      border-radius: 6px;
+      border: 1px solid #d0d8e2;
       background: #fff;
-      padding: 0.7rem 0.9rem;
-      font-size: 0.9rem;
-      color: #1a1712;
+      padding: .66rem .75rem;
+      font-size: .875rem;
+      color: var(--ink);
       text-align: left;
       transition: border-color .15s, box-shadow .15s;
     }
-    .c-select-btn:hover { border-color: #c9bea8; }
+    .c-select-btn:hover { border-color: #aebbd0; }
     .c-select-btn.open, .c-select-btn:focus {
-      border-color: #2f80ed;
-      box-shadow: 0 0 0 4px rgba(47, 128, 237, 0.12);
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(47,111,237,.14);
       outline: none;
     }
-    .c-select-btn:disabled {
-      background: #f4f1ea;
-      color: #8a8376;
-      cursor: not-allowed;
-    }
+    .c-select-btn:disabled { background: var(--surface-muted); color: #98a2b3; cursor: not-allowed; }
     .c-select-menu {
       position: absolute;
       z-index: 40;
       left: 0; right: 0;
-      top: calc(100% + 6px);
-      border-radius: 0.9rem;
-      border: 1px solid #e5ddcf;
+      top: calc(100% + 5px);
+      border-radius: 6px;
+      border: 1px solid var(--line);
       background: #fff;
-      box-shadow: 0 16px 40px rgba(42, 38, 31, 0.12);
-      padding: 0.35rem;
+      box-shadow: 0 14px 26px rgba(16,24,40,.12);
+      padding: .25rem;
       display: none;
       max-height: 14rem;
       overflow-y: auto;
@@ -145,154 +177,153 @@
     .c-select-option {
       width: 100%;
       text-align: left;
-      border-radius: 0.65rem;
-      padding: 0.65rem 0.75rem;
-      font-size: 0.875rem;
-      color: #2a261f;
+      border-radius: 4px;
+      padding: .6rem .65rem;
+      font-size: .8125rem;
+      color: var(--ink);
       background: transparent;
     }
-    .c-select-option:hover { background: #eff8ff; color: #1857ab; }
-    .c-select-option.active {
-      background: #dbeefe;
-      color: #1857ab;
-      font-weight: 600;
-    }
-    .chev {
-      width: 1rem; height: 1rem;
-      color: #8a8376;
-      transition: transform .15s;
-      flex-shrink: 0;
-    }
-    .c-select-btn.open .chev { transform: rotate(180deg); color: #2f80ed; }
-
+    .c-select-option:hover { background: var(--teal-soft); color: var(--teal); }
+    .c-select-option.active { background: var(--teal-soft); color: var(--teal); font-weight: 700; }
+    .chev { width: 1rem; height: 1rem; color: #98a2b3; transition: transform .15s; flex-shrink: 0; }
+    .c-select-btn.open .chev { transform: rotate(180deg); color: var(--teal); }
     .btn {
-      border-radius: 0.9rem;
-      padding: 0.7rem 1rem;
-      font-size: 0.875rem;
+      border-radius: 6px;
+      padding: .66rem .9rem;
+      font-size: .8125rem;
       font-weight: 700;
-      transition: transform .12s, filter .12s, box-shadow .12s, background .12s;
+      letter-spacing: 0;
+      transition: transform .12s, background .12s, border-color .12s, color .12s;
     }
-    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none !important; }
-    .btn-primary {
-      background: linear-gradient(135deg, #2f80ed, #1f9d63);
-      color: #fff;
-      box-shadow: 0 8px 20px rgba(47, 128, 237, 0.2);
+    .btn:disabled { opacity: .42; cursor: not-allowed; transform: none !important; }
+    .btn-primary { background: var(--teal); color: #fff; box-shadow: none; }
+    .btn-primary:hover:not(:disabled) { background: #215bd7; transform: translateY(-1px); }
+    .btn-danger { background: var(--coral); color: #fff; box-shadow: none; }
+    .btn-danger:hover:not(:disabled) { background: #b74037; transform: translateY(-1px); }
+    .btn-ghost { background: #fff; border: 1px solid #d0d8e2; color: #344054; }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); background: var(--teal-soft); }
+    .metric-card { position: relative; overflow: hidden; }
+    .metric-label { font-size: .75rem; font-weight: 600; letter-spacing: 0; color: var(--muted); }
+    .metric-value { margin-top: .25rem; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 1.75rem; line-height: 1; font-weight: 500; }
+    .progress-panel { border-top: 1px solid var(--line); }
+    .progress-track { height: .625rem; overflow: hidden; border-radius: 3px; background: #e8edf3; }
+    .progress-bar { background: var(--teal) !important; transition: width .4s cubic-bezier(.22,1,.36,1); }
+    .nsfw-strip { border-top: 1px solid var(--line); }
+    .log-panel { border-top: 1px solid var(--line); }
+    #logBox {
+      height: 28rem;
+      overflow-y: auto;
+      border: 1px solid #25324a;
+      border-radius: 6px;
+      background: var(--console);
+      color: #dce6f4;
+      padding: .875rem;
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: .75rem;
+      line-height: 1.7;
     }
-    .btn-primary:hover:not(:disabled) { filter: brightness(1.04); transform: translateY(-1px); }
-    .btn-danger {
-      background: linear-gradient(135deg, #e11d48, #f43f5e);
-      color: #fff;
-      box-shadow: 0 8px 20px rgba(225, 29, 72, 0.18);
-    }
-    .btn-danger:hover:not(:disabled) { filter: brightness(1.04); transform: translateY(-1px); }
-    .btn-ghost {
-      background: #fff;
-      border: 1.5px solid #ddd5c6;
-      color: #2a261f;
-    }
-    .btn-ghost:hover:not(:disabled) { border-color: #2f80ed; color: #1857ab; background: #f8fbff; }
-
-    .progress-bar {
-      background: linear-gradient(90deg, #2f80ed, #1f9d63 70%);
-      transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-    }
+    #logBox .log-line > span:first-child { color: #8fa0ba !important; }
+    #logBox .text-ink-700\/40 { color: #8fa0ba !important; }
     .log-line { animation: fadeSlide .22s ease-out; }
-    @keyframes fadeSlide {
-      from { opacity: 0; transform: translateY(3px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes pulse-dot {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: .5; transform: scale(.85); }
-    }
+    @keyframes fadeSlide { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse-dot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(.85); } }
     .pulse-live { animation: pulse-dot 1.4s ease-in-out infinite; }
-    #logBox, #successList, #keysList { scrollbar-width: thin; scrollbar-color: #d5cdb8 transparent; }
-    .tab-btn.active {
-      background: #fff;
-      color: #1857ab;
-      box-shadow: 0 1px 3px rgba(42,38,31,.08);
-      font-weight: 700;
-    }
+    #logBox, #successList, #keysList { scrollbar-width: thin; scrollbar-color: #aab7c8 transparent; }
+    .tab-btn { border-radius: 5px !important; font-weight: 600; }
+    .tab-btn.active { background: var(--teal-soft); color: #215bd7; box-shadow: none; font-weight: 700; }
     .secret-wrap { position: relative; }
     .secret-wrap .toggle-eye {
       position: absolute;
-      right: 0.7rem;
+      right: .65rem;
       top: 50%;
       transform: translateY(-50%);
-      color: #8a8376;
-      font-size: 0.75rem;
-      font-weight: 600;
+      color: #667085;
+      font-size: .6875rem;
+      font-weight: 700;
       background: none;
       border: 0;
       cursor: pointer;
     }
     .secret-wrap .field { padding-right: 3.2rem; }
+    #toastHost { position: fixed; z-index: 60; right: 1rem; bottom: 1rem; display: grid; gap: .5rem; max-width: min(24rem, calc(100vw - 2rem)); }
+    .toast { border: 1px solid var(--line); border-left: 3px solid var(--teal); border-radius: 6px; background: #fff; box-shadow: 0 12px 28px rgba(16,24,40,.14); padding: .75rem .875rem; color: var(--ink); font: 500 .75rem/1.5 "IBM Plex Mono", ui-monospace, monospace; }
+    .toast.warn { border-left-color: var(--gold); }
+    .toast.err { border-left-color: var(--coral); }
+    @media (max-width: 640px) {
+      .app-header .app-shell { padding-top: .85rem; padding-bottom: .85rem; }
+      .metric-value { font-size: 1.45rem; }
+      #logBox { height: 20rem; }
+      .workspace-grid, .workspace-grid > section, .workspace-grid .panel { min-width: 0; }
+    }
   </style>
 </head>
 <body class="h-full font-sans antialiased">
   <div class="min-h-full">
     <!-- Header -->
-    <header class="sticky top-0 z-30 border-b border-ink-900/5 bg-paper-50/90 backdrop-blur-md">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
+    <header class="app-header sticky top-0 z-30">
+      <div class="app-shell mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
         <div class="flex items-center gap-3">
-          <div class="h-11 w-11 rounded-2xl bg-gradient-to-br from-brand-500 to-leaf-500 text-white grid place-items-center shadow-soft font-display text-lg font-bold">G</div>
+          <div class="brand-mark">G</div>
           <div>
-            <h1 class="font-display text-2xl font-bold tracking-tight text-ink-900">Grok 注册控制台</h1>
-            <p class="text-xs text-ink-700/60 font-mono">配置 · 启动 · 实时日志 · Key 下载</p>
+            <h1 class="font-display text-xl sm:text-2xl font-bold text-ink-900">Grok 注册控制台</h1>
+            <p class="text-[11px] text-ink-700/60 font-mono">账号注册 / 导入管理</p>
           </div>
         </div>
-        <div id="statusBadge" class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-mono border border-ink-900/10 bg-white shadow-sm">
+        <div id="statusBadge" class="status-badge inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-mono border">
           <span id="statusDot" class="h-2 w-2 rounded-full bg-slate-400"></span>
           <span id="statusText" class="text-ink-700">IDLE</span>
         </div>
       </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+    <main class="app-shell mx-auto px-4 sm:px-6 py-5 sm:py-6 space-y-4">
       <!-- Stats -->
-      <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        <article class="panel rounded-2xl p-4">
-          <p class="text-[11px] uppercase tracking-[0.16em] text-ink-700/50 font-semibold">成功</p>
-          <p id="statSuccess" class="mt-1 font-display text-3xl font-bold text-leaf-600">0</p>
+      <section class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <article class="panel metric-card success p-4">
+          <p class="metric-label">成功</p>
+          <p id="statSuccess" class="metric-value text-leaf-600">0</p>
           <p class="text-xs text-ink-700/50 font-mono mt-1">目标 <span id="statTarget">0</span></p>
         </article>
-        <article class="panel rounded-2xl p-4">
-          <p class="text-[11px] uppercase tracking-[0.16em] text-ink-700/50 font-semibold">失败尝试</p>
-          <p id="statFail" class="mt-1 font-display text-3xl font-bold text-rose-500">0</p>
+        <article class="panel metric-card failure p-4">
+          <p class="metric-label">失败尝试</p>
+          <p id="statFail" class="metric-value text-rose-500">0</p>
           <p class="text-xs text-ink-700/50 font-mono mt-1">含重试</p>
         </article>
-        <article class="panel rounded-2xl p-4">
-          <p class="text-[11px] uppercase tracking-[0.16em] text-ink-700/50 font-semibold">平均速度</p>
-          <p id="statAvg" class="mt-1 font-display text-3xl font-bold text-brand-600">—</p>
+        <article class="panel metric-card speed p-4">
+          <p class="metric-label">平均速度</p>
+          <p id="statAvg" class="metric-value text-brand-600">—</p>
           <p class="text-xs text-ink-700/50 font-mono mt-1">秒 / 账号</p>
         </article>
-        <article class="panel rounded-2xl p-4">
-          <p class="text-[11px] uppercase tracking-[0.16em] text-ink-700/50 font-semibold">已用时间</p>
-          <p id="statElapsed" class="mt-1 font-display text-3xl font-bold text-sun-500">0s</p>
+        <article class="panel metric-card elapsed p-4">
+          <p class="metric-label">已用时间</p>
+          <p id="statElapsed" class="metric-value text-sun-500">0s</p>
           <p class="text-xs text-ink-700/50 font-mono mt-1">线程 <span id="statWorkers">0</span></p>
         </article>
       </section>
 
       <!-- Progress -->
-      <section class="panel rounded-2xl p-4 sm:p-5">
-        <div class="flex items-center justify-between mb-2">
-          <h2 class="font-display font-semibold text-ink-900">进度</h2>
-          <span id="progressLabel" class="font-mono text-sm font-semibold text-brand-600">0%</span>
+      <section class="panel progress-panel p-4 sm:p-5">
+        <div class="flex items-end justify-between gap-4 mb-3">
+          <div>
+            <p class="metric-label mb-1">执行状态</p>
+            <h2 class="font-display font-semibold text-ink-900">任务进度</h2>
+          </div>
+          <span id="progressLabel" class="font-mono text-lg font-semibold text-brand-600">0%</span>
         </div>
-        <div class="h-3 rounded-full bg-paper-200 overflow-hidden">
-          <div id="progressBar" class="progress-bar h-full w-0 rounded-full"></div>
+        <div class="progress-track">
+          <div id="progressBar" class="progress-bar h-full w-0"></div>
         </div>
-        <div class="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs font-mono text-ink-700/60">
-          <span>输出：<span id="outputFile" class="text-ink-800">—</span></span>
-          <span>Action：<span id="actionId" class="text-ink-800">—</span></span>
+        <div class="mt-3 flex flex-wrap gap-x-8 gap-y-1 text-[11px] font-mono text-ink-700/60">
+          <span>输出 <span id="outputFile" class="text-ink-800">—</span></span>
+          <span>Action <span id="actionId" class="text-ink-800">—</span></span>
         </div>
-        <div class="mt-3 rounded-xl border border-ink-900/5 bg-paper-100/80 px-3 py-2.5">
+        <div class="nsfw-strip mt-4 pt-3">
           <div class="flex items-center justify-between gap-3 mb-1.5">
-            <p class="text-[11px] uppercase tracking-[0.14em] text-ink-700/50 font-semibold">NSFW 进度</p>
+            <p class="metric-label">NSFW 队列</p>
             <span id="nsfwProgressLabel" class="font-mono text-xs font-semibold text-brand-600">—</span>
           </div>
-          <div class="h-2 rounded-full bg-paper-200 overflow-hidden">
-            <div id="nsfwProgressBar" class="progress-bar h-full w-0 rounded-full bg-gradient-to-r from-brand-500 to-leaf-500"></div>
+          <div class="progress-track h-1.5">
+            <div id="nsfwProgressBar" class="progress-bar h-full w-0"></div>
           </div>
           <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs font-mono text-ink-700/70">
             <span>完成 <span id="nsfwDone" class="text-leaf-600 font-semibold">0</span></span>
@@ -304,15 +335,15 @@
         </div>
       </section>
 
-      <div class="grid lg:grid-cols-12 gap-5">
+      <div class="workspace-grid grid lg:grid-cols-12 gap-4 items-start">
         <!-- Left column -->
         <section class="lg:col-span-5 space-y-4">
           <!-- Tabs: run / config -->
-          <div class="panel rounded-2xl overflow-hidden">
+          <div class="panel overflow-hidden">
             <div class="flex gap-1 p-1.5 bg-paper-100 border-b border-ink-900/5">
-              <button type="button" data-tab="run" class="tab-btn active flex-1 rounded-xl px-3 py-2 text-sm text-ink-700/70">运行</button>
-              <button type="button" data-tab="config" class="tab-btn flex-1 rounded-xl px-3 py-2 text-sm text-ink-700/70">配置</button>
-              <button type="button" data-tab="keys" class="tab-btn flex-1 rounded-xl px-3 py-2 text-sm text-ink-700/70">Keys</button>
+              <button type="button" data-tab="run" class="tab-btn active flex-1 px-3 py-2 text-sm text-ink-700/70">运行</button>
+              <button type="button" data-tab="config" class="tab-btn flex-1 px-3 py-2 text-sm text-ink-700/70">配置</button>
+              <button type="button" data-tab="keys" class="tab-btn flex-1 px-3 py-2 text-sm text-ink-700/70">Keys</button>
             </div>
 
             <!-- RUN PANEL -->
@@ -544,9 +575,12 @@
 
         <!-- Right: logs -->
         <section class="lg:col-span-7 space-y-4">
-          <div class="panel rounded-2xl p-5">
+          <div class="panel log-panel p-4 sm:p-5">
             <div class="flex items-center justify-between mb-3">
-              <h2 class="font-display font-semibold text-ink-900">实时日志</h2>
+              <div>
+                <p class="metric-label mb-1">事件流</p>
+                <h2 class="font-display font-semibold text-ink-900">实时日志</h2>
+              </div>
               <div class="flex items-center gap-3">
                 <span id="logConnBadge" class="text-[11px] font-mono text-ink-700/40">连接中…</span>
                 <label class="inline-flex items-center gap-1.5 text-xs text-ink-700/60 font-mono cursor-pointer select-none">
@@ -556,14 +590,15 @@
                 <button id="btnClearLogs" type="button" class="text-xs font-mono text-ink-700/55 hover:text-sun-500">清空</button>
               </div>
             </div>
-            <div id="logBox" class="h-[28rem] overflow-y-auto rounded-xl bg-paper-50 border border-ink-900/5 p-3 font-mono text-[12px] leading-relaxed space-y-1">
+            <div id="logBox" class="space-y-1">
               <div class="text-ink-700/40">等待日志...</div>
             </div>
           </div>
 
-          <div class="panel rounded-2xl p-5">
+          <div class="panel p-4 sm:p-5">
             <div class="flex items-center justify-between gap-3 mb-3">
               <div>
+                <p class="metric-label mb-1">导入队列</p>
                 <h2 class="font-display font-semibold text-ink-900">最近成功</h2>
                 <p id="upstreamHint" class="text-[11px] text-ink-700/45 mt-0.5 font-mono">配置 sub2api 后可导入</p>
               </div>
@@ -581,7 +616,7 @@
       </div>
     </main>
 
-    <footer class="max-w-7xl mx-auto px-4 sm:px-6 pb-8 pt-1 text-center text-[11px] font-mono text-ink-700/40">
+    <footer class="app-shell mx-auto px-4 sm:px-6 pb-8 pt-2 text-center text-[11px] font-mono text-ink-700/40">
       仅本机访问 · 也可使用 <span class="text-ink-700/60">python grok.py</span> 命令行
     </footer>
   </div>
@@ -1050,7 +1085,8 @@
             const row = document.createElement('div');
             row.dataset.connErr = '1';
             row.className = 'log-line text-rose-500';
-            row.innerHTML = `<span class="text-ink-700/35">[--:--:--]</span> 无法连接控制台（:3333）。请确认 python app.py 在运行，页面会自动重连。`;
+            const endpoint = window.location.host || '127.0.0.1:3333';
+            row.innerHTML = `<span class="text-ink-700/35">[--:--:--]</span> 无法连接控制台（${escapeHtml(endpoint)}）。请确认 python app.py 在运行，页面会自动重连。`;
             box.appendChild(row);
             if ($('autoScroll') && $('autoScroll').checked) box.scrollTop = box.scrollHeight;
           }

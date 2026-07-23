@@ -497,6 +497,13 @@
                       </div>
                     </div>
                     <p class="text-[11px] text-ink-700/45 -mt-1">ID 可留空，导入前会按名称自动解析；填写 ID 时会与名称一并校验</p>
+                    <div class="flex gap-2 items-center">
+                      <button type="button" id="btnLoadSub2Groups" class="btn btn-ghost text-xs py-2 shrink-0">拉取分组</button>
+                      <select id="cfgSub2GroupPicker" class="field text-sm" disabled>
+                        <option value="">拉取后选择 Grok 分组</option>
+                      </select>
+                    </div>
+                    <p id="sub2GroupMessage" class="text-[11px] font-mono min-h-[1.1rem] text-ink-700/50 -mt-1"></p>
                     <div>
                       <label class="field-label" for="cfgUpstreamEmail">UPSTREAM_ADMIN_EMAIL</label>
                       <input id="cfgUpstreamEmail" class="field font-mono text-sm" placeholder="管理员邮箱" autocomplete="username" />
@@ -560,7 +567,10 @@
                 <h2 class="font-display font-semibold text-ink-900">最近成功</h2>
                 <p id="upstreamHint" class="text-[11px] text-ink-700/45 mt-0.5 font-mono">配置 sub2api 后可导入</p>
               </div>
-              <button type="button" id="btnImportAll" class="btn btn-primary text-xs px-3 py-1.5 shrink-0" disabled>全部导入 sub2api</button>
+              <div class="shrink-0 flex items-center gap-2">
+                <button type="button" id="btnRetryImport" class="btn btn-ghost text-xs px-3 py-1.5" hidden disabled>重试失败项</button>
+                <button type="button" id="btnImportAll" class="btn btn-primary text-xs px-3 py-1.5" disabled>全部导入 sub2api</button>
+              </div>
             </div>
             <p id="importMessage" class="text-[11px] font-mono min-h-[1rem] text-ink-700/50 mb-2"></p>
             <div id="successList" class="max-h-64 overflow-y-auto space-y-2 font-mono text-xs">
@@ -977,6 +987,7 @@
             : '全部导入 sub2api';
         }
       }
+      updateRetryImportButton(data.import_job || {});
       if (!items.length) {
         list.innerHTML = '<p class="text-ink-700/45">成功账号会显示在这里</p>';
       } else {
@@ -1171,6 +1182,14 @@
           $('upstreamTestMessage').textContent = '';
           $('upstreamTestMessage').className = 'text-[11px] font-mono min-h-[1.1rem] text-ink-700/50';
         }
+        if ($('cfgSub2GroupPicker')) {
+          $('cfgSub2GroupPicker').replaceChildren(new Option('拉取后选择 Grok 分组', ''));
+          $('cfgSub2GroupPicker').disabled = true;
+        }
+        if ($('sub2GroupMessage')) {
+          $('sub2GroupMessage').textContent = '';
+          $('sub2GroupMessage').className = 'text-[11px] font-mono min-h-[1.1rem] text-ink-700/50 -mt-1';
+        }
         // 有 Worker 时自动拉取域名列表
         if (c.WORKER_DOMAIN) {
           fetchMailDomains(true).then((r) => {
@@ -1306,6 +1325,76 @@
       }
     });
 
+    function upstreamConfigPayload() {
+      return {
+        SUB2API_URL: ($('cfgUpstreamUrl') && $('cfgUpstreamUrl').value.trim()) || '',
+        UPSTREAM_URL: ($('cfgUpstreamUrl') && $('cfgUpstreamUrl').value.trim()) || '',
+        UPSTREAM_ADMIN_EMAIL: ($('cfgUpstreamEmail') && $('cfgUpstreamEmail').value.trim()) || '',
+        UPSTREAM_ADMIN_PASSWORD: ($('cfgUpstreamPwd') && $('cfgUpstreamPwd').value) || '',
+        SUB2API_GROK_GROUP_ID: ($('cfgSub2GroupId') && $('cfgSub2GroupId').value.trim()) || '',
+        SUB2API_GROK_GROUP_NAME: ($('cfgSub2GroupName') && $('cfgSub2GroupName').value.trim()) || '',
+      };
+    }
+
+    function selectSub2Group() {
+      const picker = $('cfgSub2GroupPicker');
+      const option = picker && picker.selectedOptions && picker.selectedOptions[0];
+      if (!option || !option.value) return;
+      $('cfgSub2GroupId').value = option.value;
+      $('cfgSub2GroupName').value = option.dataset.name || '';
+      const msg = $('sub2GroupMessage');
+      if (msg) {
+        msg.textContent = `已选择 ${option.dataset.name || 'Grok 分组'} (#${option.value})，保存配置后生效`;
+        msg.className = 'text-[11px] font-mono min-h-[1.1rem] text-leaf-600 -mt-1';
+      }
+    }
+
+    async function loadSub2Groups() {
+      const btn = $('btnLoadSub2Groups');
+      const picker = $('cfgSub2GroupPicker');
+      const msg = $('sub2GroupMessage');
+      if (btn) btn.disabled = true;
+      if (msg) {
+        msg.textContent = '正在读取 Grok 分组…';
+        msg.className = 'text-[11px] font-mono min-h-[1.1rem] text-ink-700/50 -mt-1';
+      }
+      try {
+        const data = await fetchJSON('/api/upstream/groups', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(upstreamConfigPayload()),
+        });
+        const groups = Array.isArray(data.groups) ? data.groups : [];
+        picker.replaceChildren(new Option('选择 Grok 分组', ''));
+        for (const group of groups) {
+          const option = new Option(`${group.name} (#${group.id})`, String(group.id));
+          option.dataset.name = group.name;
+          picker.add(option);
+        }
+        picker.disabled = groups.length === 0;
+        const configuredId = $('cfgSub2GroupId').value.trim();
+        const configuredName = $('cfgSub2GroupName').value.trim().toLowerCase();
+        const selected = groups.find(group => String(group.id) === configuredId)
+          || groups.find(group => String(group.name || '').trim().toLowerCase() === configuredName);
+        if (selected) {
+          picker.value = String(selected.id);
+          $('cfgSub2GroupId').value = String(selected.id);
+          $('cfgSub2GroupName').value = selected.name;
+        }
+        if (msg) {
+          msg.textContent = data.message || `已读取 ${groups.length} 个 Grok 分组`;
+          msg.className = 'text-[11px] font-mono min-h-[1.1rem] text-leaf-600 -mt-1';
+        }
+      } catch (e) {
+        if (msg) {
+          msg.textContent = (e.data && e.data.message) || e.message || '读取分组失败';
+          msg.className = 'text-[11px] font-mono min-h-[1.1rem] text-rose-500 -mt-1';
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
     async function testUpstream() {
       const msg = $('upstreamTestMessage');
       const btn = $('btnTestUpstream');
@@ -1318,14 +1407,7 @@
         const data = await fetchJSON('/api/upstream/test', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            SUB2API_URL: ($('cfgUpstreamUrl') && $('cfgUpstreamUrl').value.trim()) || '',
-            UPSTREAM_URL: ($('cfgUpstreamUrl') && $('cfgUpstreamUrl').value.trim()) || '',
-            UPSTREAM_ADMIN_EMAIL: ($('cfgUpstreamEmail') && $('cfgUpstreamEmail').value.trim()) || '',
-            UPSTREAM_ADMIN_PASSWORD: ($('cfgUpstreamPwd') && $('cfgUpstreamPwd').value) || '',
-            SUB2API_GROK_GROUP_ID: ($('cfgSub2GroupId') && $('cfgSub2GroupId').value.trim()) || '',
-            SUB2API_GROK_GROUP_NAME: ($('cfgSub2GroupName') && $('cfgSub2GroupName').value.trim()) || '',
-          }),
+          body: JSON.stringify(upstreamConfigPayload()),
         });
         if (msg) {
           msg.textContent = data.message || (data.ok ? '连通正常' : '失败');
@@ -1341,11 +1423,22 @@
       }
     }
 
+    function updateRetryImportButton(job) {
+      const btn = $('btnRetryImport');
+      if (!btn) return;
+      const retryable = Math.max(0, Number((job && job.retryable_failures) || 0));
+      const running = !!(job && (job.running || job.status === 'running')) || state.importing;
+      btn.hidden = retryable === 0;
+      btn.disabled = running || retryable === 0;
+      btn.textContent = `重试失败项 (${retryable})`;
+    }
+
     function applyImportJob(job) {
       if (!job) return;
       const running = !!job.running || job.status === 'running';
       state.importing = running;
       if (running) state.importJobId = job.id || state.importJobId;
+      updateRetryImportButton(job);
 
       const total = job.total || 0;
       const done = job.done || 0;
@@ -1417,8 +1510,7 @@
         : '正在导入 sub2api（有缓存 token 则直写，否则再换票）…';
       setMessage($('importMessage'), tip, true);
       try {
-        // 前台同步：等接口跑完再返回结果
-        const body = { merge: true, async: false };
+        const body = { merge: true, async: true };
         if (opts.file) body.file = opts.file;
         else if (ids && ids.length) body.ids = ids;
         else body.all = true;
@@ -1427,34 +1519,16 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
-        const src = data.source ? ` · ${data.source}` : '';
-        const submitted = data.submitted != null ? `（提交 ${data.submitted}）` : '';
-        const okN = data.success ?? 0;
-        const failN = data.fail ?? 0;
-        const okish = !!data.ok || okN > 0;
-        setMessage(
-          $('importMessage'),
-          (data.message || '导入完成') + submitted + src,
-          okish
-        );
-        showToast(
-          `导入完成：成功 ${okN} / 失败 ${failN}${submitted}${src}`,
-          failN > 0 && okN === 0 ? 'err' : failN > 0 ? 'warn' : 'ok',
-          6000
-        );
-        state.importing = false;
-        if (data.recent_success) {
-          const next = {
-            ...(state.lastStatus || {}),
-            recent_success: data.recent_success,
-            env: (state.lastStatus && state.lastStatus.env) || undefined,
-            status: (state.lastStatus && state.lastStatus.status) || 'idle',
-          };
-          renderStatus(next);
-        } else {
-          pollOnce();
-        }
-        refreshKeys();
+        state.importJobId = data.job_id || state.importJobId;
+        applyImportJob(data.job || {
+          id: data.job_id,
+          running: true,
+          status: 'running',
+          total: data.submitted || 0,
+          message: data.message,
+          source: data.source,
+        });
+        pollOnce();
       } catch (e) {
         state.importing = false;
         const msg = (e.data && e.data.message) || e.message || '导入失败';
@@ -1465,8 +1539,47 @@
       }
     }
 
+    async function retryFailedImports() {
+      if (state.importing) return;
+      state.importing = true;
+      updateRetryImportButton((state.lastStatus && state.lastStatus.import_job) || {});
+      setMessage($('importMessage'), '正在提交失败项重试…', true);
+      try {
+        const data = await fetchJSON('/api/upstream/import/retry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        state.importJobId = data.job_id || state.importJobId;
+        applyImportJob(data.job || {
+          id: data.job_id,
+          running: true,
+          status: 'running',
+          total: data.submitted || 0,
+          message: data.message,
+          source: data.source,
+        });
+        pollOnce();
+      } catch (e) {
+        state.importing = false;
+        const msg = (e.data && e.data.message) || e.message || '重试启动失败';
+        setMessage($('importMessage'), msg, false);
+        showToast(msg, 'err', 6000);
+        if (state.lastStatus) renderStatus(state.lastStatus);
+      }
+    }
+
     if ($('btnTestUpstream')) {
       $('btnTestUpstream').addEventListener('click', testUpstream);
+    }
+    if ($('btnLoadSub2Groups')) {
+      $('btnLoadSub2Groups').addEventListener('click', loadSub2Groups);
+    }
+    if ($('cfgSub2GroupPicker')) {
+      $('cfgSub2GroupPicker').addEventListener('change', selectSub2Group);
+    }
+    if ($('btnRetryImport')) {
+      $('btnRetryImport').addEventListener('click', retryFailedImports);
     }
     if ($('btnImportAll')) {
       $('btnImportAll').addEventListener('click', () => importToUpstream(null));

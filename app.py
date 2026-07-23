@@ -44,12 +44,15 @@ _import_job: dict = {
     "started_at": None,
     "finished_at": None,
     "result": None,
+    "retry_accounts": [],
 }
 
 
 def get_import_job_public() -> dict:
     with _import_job_lock:
         job = dict(_import_job)
+    retry_accounts = job.pop("retry_accounts", [])
+    job["retryable_failures"] = len(retry_accounts) if isinstance(retry_accounts, list) else 0
     # 不把完整 results 塞进轮询
     result = job.get("result")
     if isinstance(result, dict):
@@ -60,6 +63,7 @@ def get_import_job_public() -> dict:
             "fail": result.get("fail"),
             "total": result.get("total"),
             "cached_hits": result.get("cached_hits"),
+            "sso_api_hits": result.get("sso_api_hits"),
             "flow_hits": result.get("flow_hits"),
             "submitted": result.get("submitted"),
             "source": result.get("source"),
@@ -915,6 +919,53 @@ def sub2api_import_auth_entry(
     return {"ok": True, "id": data.get("id"), "action": "inserted", "group_id": group_id, "email": email or None, "user_id": user_id or None, "auth_key": auth_key, "expires_at": credentials.get("expires_at") or "", "has_refresh_token": bool(credentials.get("refresh_token"))}
 
 
+def sub2api_import_sso_tokens_http(
+    sso_tokens: list[str],
+    *,
+    token: str,
+    base_url: str,
+    group_id: int,
+    emails: list[str] | None = None,
+) -> dict:
+    """批量调用 sub2api 服务端 SSO 转 OAuth 接口。"""
+    tokens = [str(value).strip() for value in (sso_tokens or []) if str(value).strip()]
+    if not tokens:
+        return {"ok": False, "error": "sso_tokens 为空", "created": [], "failed": []}
+
+    body: dict = {
+        "sso_tokens": tokens,
+        "group_ids": [int(group_id)],
+        "auto_pause_on_expired": True,
+    }
+    if emails and len(emails) == 1 and emails[0]:
+        body["name"] = emails[0]
+
+    response = sub2api_http_request(
+        "POST",
+        "/api/v1/admin/grok/sso-to-oauth",
+        token=token,
+        base_url=base_url,
+        json_body=body,
+        timeout=120,
+    )
+    if not response.get("ok"):
+        error = response.get("error") or "sso-to-oauth 失败"
+        return {
+            "ok": False,
+            "error": error,
+            "created": [],
+            "failed": [{"index": index + 1, "error": error} for index in range(len(tokens))],
+            "status_code": response.get("status_code"),
+        }
+    data = response.get("data") if isinstance(response.get("data"), dict) else {}
+    return {
+        "ok": True,
+        "created": data.get("created") if isinstance(data.get("created"), list) else [],
+        "failed": data.get("failed") if isinstance(data.get("failed"), list) else [],
+        "raw": data,
+    }
+
+
 def resolve_sub2api_grok_group(
     *,
     token: str,
@@ -1133,7 +1184,7 @@ def _normalize_import_accounts(
     return out
 
 
-def import_sso_to_upstream(
+def _import_sso_to_upstream_legacy(
     sso_lines: list[str] | None = None,
     merge: bool = True,
     max_workers: int = 1,
@@ -1524,6 +1575,342 @@ def import_sso_to_upstream(
         "group_name": sub2.get("group_name"),
         "mode": "cached_token_or_device_flow_then_sub2api_http",
     }
+
+def import_sso_to_upstream(
+    sso_lines: list[str] | None = None,
+    merge: bool = True,
+    max_workers: int = 1,
+    base_url: str | None = None,
+    password: str | None = None,
+    accounts: list[dict] | None = None,
+    progress_cb=None,
+) -> dict:
+    """批量导入 SSO：缓存 token 直写 -> 服务端转换 -> 本机兜底。"""
+    import time
+    from grok import (
+        _device_flow_error_kind,
+        _device_flow_wait_seconds,
+        _mark_device_flow_cooldown,
+        is_auth_token_usable,
+        sso_device_flow_to_token,
+        token_to_auth_entry,
+    )
+
+    del max_workers, password
+    if base_url:
+        os.environ["SUB2API_URL"] = normalize_upstream_url(base_url)
+    sub2 = get_sub2api_config()
+    items = _normalize_import_accounts(sso_lines=sso_lines, accounts=accounts)
+    if not items:
+        return {"ok": False, "message": "没有可导入的 SSO"}
+    if not sub2.get("url") or not sub2.get("group_name"):
+        return {"ok": False, "message": "请先配置 SUB2API_URL 与 SUB2API_GROK_GROUP_NAME"}
+    if not sub2.get("admin_email") or not sub2.get("admin_password"):
+        return {"ok": False, "message": "请先配置 UPSTREAM_ADMIN_EMAIL 与 UPSTREAM_ADMIN_PASSWORD"}
+
+    login = sub2api_http_login(cfg=sub2)
+    if not login.get("ok"):
+        return {"ok": False, "message": login.get("error") or "sub2api 管理员登录失败"}
+    api_token = login["access_token"]
+    api_base = login["base_url"]
+    group_result = resolve_sub2api_grok_group(
+        token=api_token,
+        base_url=api_base,
+        group_id=sub2.get("group_id") or "",
+        group_name=sub2.get("group_name") or "grok",
+    )
+    if not group_result.get("ok"):
+        return {"ok": False, "message": group_result.get("error") or "未解析到 sub2api Grok 分组"}
+    group_id = int(group_result["group_id"])
+    sub2["group_id"] = str(group_id)
+
+    total = len(items)
+    results_by_idx: dict[int, dict] = {}
+    imported: list[dict] = []
+    ok_count = 0
+    fail_count = 0
+    cached_hits = 0
+    sso_api_hits = 0
+    flow_hits = 0
+
+    def _progress(*, current: str = "", phase: str = "") -> None:
+        if not progress_cb:
+            return
+        try:
+            progress_cb(
+                done=len(results_by_idx),
+                total=total,
+                success=ok_count,
+                fail=fail_count,
+                current=current,
+                phase=phase,
+            )
+        except Exception:
+            pass
+
+    def _sso_hint(sso: str) -> str:
+        return (sso[:12] + "...") if len(sso) > 12 else sso
+
+    def _record_success(item: dict) -> None:
+        nonlocal ok_count
+        ok_count += 1
+        imported.append(
+            {
+                "id": item.get("account_id"),
+                "email": item.get("email"),
+                "user_id": item.get("user_id"),
+                "expires_at": item.get("expires_at"),
+                "has_refresh_token": item.get("has_refresh_token"),
+            }
+        )
+
+    def _write_auth_entry(entry: dict, email_hint: str, index: int) -> dict:
+        data = sub2api_import_auth_entry(
+            entry,
+            email_hint=email_hint,
+            merge=merge,
+            token=api_token,
+            base_url=api_base,
+            cfg=sub2,
+        )
+        if not data.get("ok"):
+            return {
+                "index": index,
+                "email": data.get("email") or email_hint or None,
+                "status": "failed",
+                "error": data.get("error") or "sub2api 写入失败",
+                "user_id": data.get("user_id") or entry.get("user_id"),
+                "retryable": False,
+            }
+        return {
+            "index": index,
+            "email": data.get("email") or email_hint or entry.get("email") or None,
+            "status": "ok",
+            "account_id": data.get("id"),
+            "action": data.get("action"),
+            "group_id": data.get("group_id"),
+            "user_id": data.get("user_id") or entry.get("user_id"),
+            "expires_at": data.get("expires_at") or entry.get("expires_at"),
+            "has_refresh_token": bool(data.get("has_refresh_token")),
+        }
+
+    def _device_flow(sso: str, index: int) -> tuple[dict | None, str]:
+        last_error = "本机 device flow 失败"
+        for attempt in range(1, 5):
+            flow = sso_device_flow_to_token(sso, timeout=28)
+            if flow.get("ok") and flow.get("token"):
+                return flow, ""
+            last_error = flow.get("error") or last_error
+            if _device_flow_error_kind(str(last_error)) == "invalid":
+                break
+            if attempt < 4:
+                wait = _device_flow_wait_seconds(str(last_error), attempt)
+                if _device_flow_error_kind(str(last_error)) == "rate_limited":
+                    _mark_device_flow_cooldown(wait)
+                logs.emit(
+                    f"sub2api 兜底 [{index}/{total}] device flow 重试 {attempt}/4，等待 {wait:.0f}s…",
+                    "warn",
+                )
+                time.sleep(wait)
+        return None, last_error
+
+    def _retryable_sso_error(error: str) -> bool:
+        text = (error or "").lower()
+        return not any(marker in text for marker in ("unauthorized", "invalid", "expired", "会话无效", "非有效"))
+
+    _progress(phase="start")
+    pending_sso_indices: list[int] = []
+
+    # 路径 A：可用缓存 token 直接写入 accounts。
+    for index, account in enumerate(items, 1):
+        email_hint = account.get("email") or ""
+        sso = account.get("sso") or ""
+        auth_token = account.get("auth_token") if isinstance(account.get("auth_token"), dict) else None
+        if not is_auth_token_usable(auth_token):
+            pending_sso_indices.append(index)
+            continue
+        _progress(current=email_hint or _sso_hint(sso), phase="cached_token")
+        try:
+            item = _write_auth_entry(token_to_auth_entry(auth_token, email=email_hint), email_hint, index)
+            item["sso_hint"] = _sso_hint(sso)
+            item["via"] = "cached_token_http"
+        except Exception as exc:
+            item = {
+                "index": index,
+                "email": email_hint or None,
+                "sso_hint": _sso_hint(sso),
+                "status": "failed",
+                "error": f"缓存 token 导入异常: {exc}",
+                "retryable": False,
+                "via": "cached_token_http",
+            }
+        results_by_idx[index] = item
+        if item.get("status") == "ok":
+            cached_hits += 1
+            _record_success(item)
+        else:
+            fail_count += 1
+        _progress(current=email_hint or _sso_hint(sso), phase="cached_token")
+
+    # 路径 B：无缓存 token 的 SSO 每 20 条交给 sub2api 服务端转换。
+    batch_size = 20
+    for start in range(0, len(pending_sso_indices), batch_size):
+        batch_indices = pending_sso_indices[start : start + batch_size]
+        batch_tokens = [items[index - 1].get("sso") or "" for index in batch_indices]
+        batch_emails = [items[index - 1].get("email") or "" for index in batch_indices]
+        _progress(current=f"服务端转换 {start + 1}-{start + len(batch_indices)}", phase="sso_to_oauth")
+        api_result = sub2api_import_sso_tokens_http(
+            batch_tokens,
+            token=api_token,
+            base_url=api_base,
+            group_id=group_id,
+            emails=batch_emails if len(batch_emails) == 1 else None,
+        )
+        created_by_index: dict[int, dict] = {}
+        failed_by_index: dict[int, str] = {}
+        if api_result.get("ok"):
+            for created in api_result.get("created") or []:
+                if not isinstance(created, dict) or created.get("index") is None:
+                    continue
+                try:
+                    created_by_index[int(created["index"])] = created
+                except (TypeError, ValueError):
+                    pass
+            for failed in api_result.get("failed") or []:
+                if not isinstance(failed, dict) or failed.get("index") is None:
+                    continue
+                try:
+                    failed_by_index[int(failed["index"])] = str(failed.get("error") or "sso-to-oauth 失败")
+                except (TypeError, ValueError):
+                    pass
+            if not created_by_index:
+                created_items = [item for item in api_result.get("created") or [] if isinstance(item, dict)]
+                success_slots = [slot for slot in range(1, len(batch_indices) + 1) if slot not in failed_by_index]
+                for slot, created in zip(success_slots, created_items):
+                    created_by_index[slot] = created
+        else:
+            error = api_result.get("error") or "sso-to-oauth 请求失败"
+            failed_by_index = {slot: error for slot in range(1, len(batch_indices) + 1)}
+
+        for slot, index in enumerate(batch_indices, 1):
+            account = items[index - 1]
+            email_hint = account.get("email") or ""
+            sso = account.get("sso") or ""
+            if slot in created_by_index:
+                created = created_by_index[slot]
+                credentials = created.get("credentials") if isinstance(created.get("credentials"), dict) else {}
+                item = {
+                    "index": index,
+                    "email": email_hint or credentials.get("email") or created.get("name") or None,
+                    "sso_hint": _sso_hint(sso),
+                    "status": "ok",
+                    "account_id": created.get("id"),
+                    "action": "sso_to_oauth",
+                    "group_id": group_id,
+                    "user_id": credentials.get("user_id") or created.get("user_id"),
+                    "expires_at": credentials.get("expires_at") or created.get("expires_at"),
+                    "has_refresh_token": bool(credentials.get("refresh_token")),
+                    "via": "sso_to_oauth_http",
+                }
+                results_by_idx[index] = item
+                sso_api_hits += 1
+                _record_success(item)
+            else:
+                error = failed_by_index.get(slot) or "sso-to-oauth 未返回成功"
+                results_by_idx[index] = {
+                    "index": index,
+                    "email": email_hint or None,
+                    "sso_hint": _sso_hint(sso),
+                    "status": "failed",
+                    "error": error,
+                    "retryable": _retryable_sso_error(error),
+                    "via": "sso_to_oauth_http",
+                }
+                fail_count += 1
+        _progress(current=f"服务端转换 {start + 1}-{start + len(batch_indices)}", phase="sso_to_oauth")
+
+    # 路径 C：服务端转换的可重试失败，才回退本机 device flow。
+    retry_indices = [
+        index
+        for index, item in results_by_idx.items()
+        if item.get("status") == "failed"
+        and item.get("via") == "sso_to_oauth_http"
+        and item.get("retryable")
+    ]
+    for position, index in enumerate(retry_indices, 1):
+        account = items[index - 1]
+        email_hint = account.get("email") or ""
+        sso = account.get("sso") or ""
+        if position > 1:
+            time.sleep(5)
+        _progress(current=f"兜底 {position}/{len(retry_indices)}: {email_hint or _sso_hint(sso)}", phase="retry")
+        flow, flow_error = _device_flow(sso, index)
+        if not flow or not flow.get("token"):
+            results_by_idx[index] = {
+                "index": index,
+                "email": email_hint or None,
+                "sso_hint": _sso_hint(sso),
+                "status": "failed",
+                "error": flow_error or "本机 device flow 失败",
+                "retryable": _device_flow_error_kind(str(flow_error)) != "invalid",
+                "via": "device_flow_http",
+            }
+            continue
+        try:
+            item = _write_auth_entry(token_to_auth_entry(flow["token"], email=email_hint), email_hint, index)
+            item["sso_hint"] = _sso_hint(sso)
+            item["via"] = "device_flow_http"
+        except Exception as exc:
+            item = {
+                "index": index,
+                "email": email_hint or None,
+                "sso_hint": _sso_hint(sso),
+                "status": "failed",
+                "error": f"device flow 兜底异常: {exc}",
+                "retryable": True,
+                "via": "device_flow_http",
+            }
+        results_by_idx[index] = item
+        if item.get("status") == "ok":
+            fail_count = max(0, fail_count - 1)
+            flow_hits += 1
+            _record_success(item)
+        _progress(current=f"兜底 {position}/{len(retry_indices)}: {email_hint or _sso_hint(sso)}", phase="retry")
+
+    for index, account in enumerate(items, 1):
+        if index not in results_by_idx:
+            fail_count += 1
+            results_by_idx[index] = {
+                "index": index,
+                "email": account.get("email") or None,
+                "status": "failed",
+                "error": "未处理",
+                "retryable": True,
+                "via": "error",
+            }
+
+    results = [results_by_idx[index] for index in sorted(results_by_idx)]
+    message = (
+        f"SSO 导入 sub2api 完成：{ok_count} 成功，{fail_count} 失败"
+        f"（缓存直写 {cached_hits}，服务端转换 {sso_api_hits}，device flow {flow_hits}）"
+    )
+    return {
+        "ok": fail_count == 0 and ok_count > 0,
+        "message": message,
+        "success": ok_count,
+        "fail": fail_count,
+        "total": total,
+        "cached_hits": cached_hits,
+        "sso_api_hits": sso_api_hits,
+        "flow_hits": flow_hits,
+        "results": results,
+        "imported": imported,
+        "base_url": api_base,
+        "group_id": str(group_id),
+        "group_name": group_result["group_name"],
+        "mode": "cached_token_or_sso_to_oauth_then_device_flow",
+    }
+
 
 def mask_secret(value: str, keep: int = 4) -> str:
     if not value:
@@ -1971,6 +2358,64 @@ def upstream_test():
     return jsonify(result), code
 
 
+@app.post("/api/upstream/groups")
+def upstream_groups():
+    """读取当前管理员可见的 Grok 分组，用于配置下拉选择。"""
+    body = request.get_json(silent=True) or {}
+    cfg = get_sub2api_config()
+    base = body.get("SUB2API_URL") or body.get("UPSTREAM_URL") or body.get("url")
+    email = body.get("UPSTREAM_ADMIN_EMAIL") or body.get("email")
+    password = body.get("UPSTREAM_ADMIN_PASSWORD") or body.get("password")
+    if base is not None and not str(base).strip():
+        base = None
+    if email is not None and not str(email).strip():
+        email = None
+    if password is not None and not str(password).strip():
+        password = None
+
+    login = sub2api_http_login(
+        base_url=str(base).strip() if base is not None else None,
+        email=str(email).strip() if email is not None else None,
+        password=str(password) if password is not None else None,
+        cfg=cfg,
+    )
+    if not login.get("ok"):
+        return jsonify({"ok": False, "message": login.get("error") or "sub2api 管理员登录失败", "groups": []}), 502
+
+    response = sub2api_http_request(
+        "GET",
+        "/api/v1/admin/groups",
+        token=login["access_token"],
+        base_url=login["base_url"],
+        params={"platform": "grok", "page": 1, "page_size": 50},
+        timeout=15,
+    )
+    data = response.get("data") if isinstance(response.get("data"), dict) else {}
+    items = data.get("items") if isinstance(data.get("items"), list) else []
+    if not response.get("ok"):
+        return jsonify({"ok": False, "message": response.get("error") or "读取 Grok 分组失败", "groups": []}), 502
+
+    groups = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        try:
+            group_id = int(item.get("id"))
+        except (TypeError, ValueError):
+            continue
+        name = str(item.get("name") or "").strip()
+        if not name:
+            continue
+        groups.append({"id": group_id, "name": name, "status": item.get("status") or ""})
+    groups.sort(key=lambda item: (item["name"].lower(), item["id"]))
+    return jsonify({
+        "ok": True,
+        "message": f"已读取 {len(groups)} 个 Grok 分组",
+        "groups": groups,
+        "base_url": login["base_url"],
+    })
+
+
 def _safe_keys_file(name: str) -> Path | None:
     """仅允许读取 keys/ 下的 .txt，防止路径穿越。"""
     raw = (name or "").strip().replace("\\", "/")
@@ -2227,6 +2672,25 @@ def _prepare_import_payload(body: dict) -> dict:
     }
 
 
+def _retry_accounts_from_result(payload: dict, result: dict) -> list[dict]:
+    """按导入结果索引保留可重试 SSO；仅保存在服务端任务内存。"""
+    normalized = _normalize_import_accounts(
+        sso_lines=payload.get("sso_lines"),
+        accounts=payload.get("accounts"),
+    )
+    retry_accounts: list[dict] = []
+    for row in result.get("results") or []:
+        if not isinstance(row, dict) or row.get("status") != "failed" or not row.get("retryable"):
+            continue
+        try:
+            index = int(row.get("index") or 0)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= index <= len(normalized):
+            retry_accounts.append(dict(normalized[index - 1]))
+    return retry_accounts
+
+
 def _run_import_job(job_id: str, payload: dict) -> None:
     def progress_cb(**kwargs):
         # 任务被替换时不再更新
@@ -2248,6 +2712,7 @@ def _run_import_job(job_id: str, payload: dict) -> None:
         result["source"] = payload.get("source") or ""
         if payload.get("file"):
             result["file"] = payload["file"]
+        retry_accounts = _retry_accounts_from_result(payload, result)
 
         ok = bool(result.get("ok") or (result.get("success") or 0) > 0)
         level = "success" if result.get("ok") else (
@@ -2272,6 +2737,7 @@ def _run_import_job(job_id: str, payload: dict) -> None:
                     "current": "",
                     "finished_at": time.time(),
                     "result": result,
+                    "retry_accounts": retry_accounts,
                 }
             )
     except Exception as e:
@@ -2286,6 +2752,7 @@ def _run_import_job(job_id: str, payload: dict) -> None:
                     "message": f"导入异常: {e}",
                     "finished_at": time.time(),
                     "result": {"ok": False, "message": str(e), "success": 0, "fail": 0},
+                    "retry_accounts": [],
                 }
             )
 
@@ -2359,6 +2826,7 @@ def upstream_import():
         started_at=time.time(),
         finished_at=None,
         result=None,
+        retry_accounts=[],
     )
     logs.emit(f"sub2api 导入任务已启动：{submitted} 条 · {source}（后台运行）", "info")
     t = threading.Thread(
@@ -2379,6 +2847,68 @@ def upstream_import():
             "job": get_import_job_public(),
         }
     )
+
+
+@app.post("/api/upstream/import/retry")
+def upstream_import_retry():
+    """重新提交上一任务中标记为可重试的失败 SSO。"""
+    with _import_job_lock:
+        already_running = bool(_import_job.get("running"))
+        retry_accounts = _import_job.get("retry_accounts")
+        previous_source = str(_import_job.get("source") or "previous_import")
+    if already_running:
+        return jsonify({"ok": False, "message": "已有导入任务在进行中", "job": get_import_job_public()}), 409
+    if not isinstance(retry_accounts, list) or not retry_accounts:
+        return jsonify({"ok": False, "message": "没有可重试的失败项"}), 400
+
+    accounts = [dict(item) for item in retry_accounts if isinstance(item, dict) and item.get("sso")]
+    if not accounts:
+        return jsonify({"ok": False, "message": "没有可重试的有效 SSO"}), 400
+
+    job_id = uuid.uuid4().hex[:12]
+    source = f"retry:{previous_source}"
+    payload = {
+        "merge": True,
+        "source": source,
+        "sso_lines": None,
+        "accounts": accounts,
+        "selected": None,
+        "submitted": len(accounts),
+        "file": "",
+    }
+    _update_import_job(
+        id=job_id,
+        running=True,
+        status="running",
+        message=f"已开始重试 {len(accounts)} 条（{source}）",
+        source=source,
+        total=len(accounts),
+        done=0,
+        success=0,
+        fail=0,
+        current="",
+        started_at=time.time(),
+        finished_at=None,
+        result=None,
+        retry_accounts=[],
+    )
+    logs.emit(f"sub2api 重试任务已启动：{len(accounts)} 条 · {source}", "info")
+    t = threading.Thread(
+        target=_run_import_job,
+        args=(job_id, payload),
+        daemon=True,
+        name=f"ImportRetry-{job_id}",
+    )
+    t.start()
+    return jsonify({
+        "ok": True,
+        "async": True,
+        "message": f"失败项已在后台重试（{len(accounts)} 条）",
+        "job_id": job_id,
+        "submitted": len(accounts),
+        "source": source,
+        "job": get_import_job_public(),
+    })
 
 
 @app.get("/keys/<path:filename>")

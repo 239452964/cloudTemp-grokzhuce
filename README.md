@@ -24,7 +24,7 @@
 | `api_solver.py` | Turnstile 验证码解决器 |
 | `browser_configs.py` | 浏览器指纹配置 |
 | `db_results.py` | 验证结果存储 |
-| `g/email_service.py` | 临时邮箱服务（freemail API） |
+| `g/email_service.py` | 临时邮箱服务（cloudflare_temp_email 主路径，兼容旧 freemail） |
 | `g/turnstile_service.py` | Turnstile 验证服务 |
 | `g/user_agreement_service.py` | 用户协议同意服务 |
 | `g/nsfw_service.py` | NSFW 设置服务 |
@@ -33,7 +33,7 @@
 
 ## 依赖
 
-- [freemail](https://github.com/user/freemail) - 临时邮箱服务（需自行部署）
+- [cloudflare_temp_email](https://github.com/dreamhunter2333/cloudflare_temp_email) - 临时邮箱服务（部署到 Cloudflare Worker）
 - Turnstile Solver - 内置验证码解决方案
 
 ## 安装
@@ -56,8 +56,10 @@ cp .env.example .env
 
 | 配置项 | 说明 | 默认 |
 |--------|------|------|
-| WORKER_DOMAIN | freemail 服务域名 | — |
-| FREEMAIL_TOKEN | freemail JWT Token / 站点密码 | — |
+| WORKER_DOMAIN | cloudflare_temp_email 的 Worker 域名（不带 `https://`） | — |
+| FREEMAIL_TOKEN | cloudflare_temp_email 的站点密码；变量名为兼容旧 freemail 保留 | — |
+| FREEMAIL_DOMAIN | 邮箱后缀；`auto` 使用服务端默认值 | auto |
+| FREEMAIL_API_STYLE | `cf_temp` 强制 Cloudflare Temp Email；`auto` 优先走该模式 | auto |
 | YESCAPTCHA_KEY | YesCaptcha API Key（可选，不填使用本地 Solver） | 空 |
 | SOLVER_URL | 本地 Solver 地址 | http://127.0.0.1:5072 |
 | SOLVER_BROWSER | 浏览器类型 camoufox / chromium | camoufox |
@@ -100,7 +102,7 @@ python app.py
 浏览器打开：`http://127.0.0.1:3333`
 
 界面功能：
-- **配置页**：在线编辑 freemail / YesCaptcha / Solver / 端口，保存到 `.env`
+- **配置页**：在线编辑临时邮箱（Cloudflare Temp Email）/ YesCaptcha / Solver / 端口，保存到 `.env`
 - **运行页**：一键启动/停止 Turnstile Solver，查看在线状态与 PID
 - 自定义下拉选择并发与数量（非系统原生 select）
 - 一键启动 / 停止注册
@@ -141,6 +143,7 @@ Grok 注册机
 
 ## 注意事项
 
-- 需要自行部署 freemail 临时邮箱服务
+- 需要部署 cloudflare_temp_email 到 Cloudflare Worker，并配置 `WORKER_DOMAIN` 与站点密码
+- 旧 freemail API 仅作为兼容回退；使用 Cloudflare Temp Email 时设置 `FREEMAIL_API_STYLE=cf_temp`
 - 运行前必须先启动 Turnstile Solver
 - 仅供学习研究使用

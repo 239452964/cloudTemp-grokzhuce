@@ -164,7 +164,7 @@ def write_env_file(values: dict) -> None:
     # ensure example comments if file was empty
     if not existing_lines:
         out = [
-            "# freemail API 配置",
+            "# 临时邮箱（cloudflare_temp_email）配置",
             f"WORKER_DOMAIN={values.get('WORKER_DOMAIN', '')}",
             f"FREEMAIL_TOKEN={values.get('FREEMAIL_TOKEN', '')}",
             f"FREEMAIL_DOMAIN={values.get('FREEMAIL_DOMAIN', DEFAULTS['FREEMAIL_DOMAIN'])}",

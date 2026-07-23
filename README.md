@@ -15,7 +15,11 @@
 
 | 文件 | 说明 |
 |------|------|
-| `grok.py` | 主程序，批量注册入口 |
+| `app.py` | Web 控制台（Flask + Tailwind） |
+| `templates/index.html` | 控制台前端页面 |
+| `grok.py` | 注册引擎 + CLI 入口 |
+| `solver_manager.py` | Turnstile Solver 启动/停止/状态管理 |
+| `setup_solver.py` | 一键安装 Solver 依赖与 camoufox |
 | `TurnstileSolver.bat` | Turnstile Solver 启动脚本 |
 | `api_solver.py` | Turnstile 验证码解决器 |
 | `browser_configs.py` | 浏览器指纹配置 |
@@ -36,6 +40,8 @@
 
 ```bash
 pip install -r requirements.txt
+# 首次使用本地 Turnstile Solver 时，再安装浏览器依赖（约 530MB）
+python setup_solver.py
 ```
 
 ## 配置
@@ -48,27 +54,62 @@ cp .env.example .env
 
 配置项说明：
 
-| 配置项 | 说明 |
-|--------|------|
-| WORKER_DOMAIN | freemail 服务域名 |
-| FREEMAIL_TOKEN | freemail JWT Token |
-| YESCAPTCHA_KEY | YesCaptcha API Key（可选，不填使用本地 Solver） |
+| 配置项 | 说明 | 默认 |
+|--------|------|------|
+| WORKER_DOMAIN | freemail 服务域名 | — |
+| FREEMAIL_TOKEN | freemail JWT Token / 站点密码 | — |
+| YESCAPTCHA_KEY | YesCaptcha API Key（可选，不填使用本地 Solver） | 空 |
+| SOLVER_URL | 本地 Solver 地址 | http://127.0.0.1:5072 |
+| SOLVER_BROWSER | 浏览器类型 camoufox / chromium | camoufox |
+| SOLVER_THREADS | Solver 浏览器线程数 | 4 |
+| UI_HOST | Web 监听地址 | 127.0.0.1 |
+| UI_PORT | Web 端口 | 3333 |
+| SUB2API_URL | sub2api Web 地址（健康检查） | http://127.0.0.1:9898 |
+| SUB2API_GROK_GROUP_ID | **导入目标分组 ID**（必填，见下文） | 空，需自行填写 |
+| SUB2API_GROK_GROUP_NAME | 分组名称，须与后台一致 | grok |
+| SUB2API_GROK_GROUP_ID / NAME | sub2api 中的 Grok 分组 | 23 / grok |
+| UPSTREAM_ADMIN_EMAIL | sub2api 管理员邮箱 | — |
+| UPSTREAM_ADMIN_PASSWORD | sub2api 管理员密码（仅本地 `.env`） | — |
+
+> **切勿提交 `.env`**。仓库只带 `.env.example`；本地 `cp .env.example .env` 后填写真实值。
 
 ## 使用
 
 ### 1. 启动 Turnstile Solver
 
-双击运行 `TurnstileSolver.bat` 或执行：
+**推荐**：Web 控制台运行页一键「启动 Solver」。
+
+或命令行：
 
 ```bash
-python api_solver.py --browser_type camoufox --thread 5 --debug
+python solver_manager.py start
+python solver_manager.py status
+python solver_manager.py stop
 ```
 
-等待 Solver 启动完成（监听 `http://127.0.0.1:5072`）
+也可双击 `TurnstileSolver.bat`。
 
-### 2. 运行注册程序
+等待 Solver 启动完成（监听 `http://127.0.0.1:5072`）。日志：`logs/turnstile_solver.log`。
 
-新开一个终端，运行：
+### 2. Web 控制台（推荐）
+
+```bash
+python app.py
+```
+
+浏览器打开：`http://127.0.0.1:3333`
+
+界面功能：
+- **配置页**：在线编辑 freemail / YesCaptcha / Solver / 端口，保存到 `.env`
+- **运行页**：一键启动/停止 Turnstile Solver，查看在线状态与 PID
+- 自定义下拉选择并发与数量（非系统原生 select）
+- 一键启动 / 停止注册
+- 实时进度、成功率、平均耗时
+- 实时日志与最近成功账号
+- 下载 `keys/` 下的 SSO 文件
+- 浅色主题控制台
+
+### 3. 命令行模式
 
 ```bash
 python grok.py

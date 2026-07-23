@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grok 注册控制台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            paper: {
+              50: '#fbfaf7',
+              100: '#f4f1ea',
+              200: '#e8e2d6',
+              300: '#d5cdb8',
+            },
+            ink: {
+              700: '#3f3a33',
+              800: '#2a261f',
+              900: '#1a1712',
+            },
+            brand: {
+              50: '#eff8ff',
+              100: '#dbeefe',
+              500: '#2f80ed',
+              600: '#1f6fd6',
+              700: '#1857ab',
+            },
+            leaf: {
+              500: '#1f9d63',
+              600: '#178451',
+            },
+            sun: {
+              500: '#d97706',
+            },
+            rose: {
+              500: '#e11d48',
+            }
+          },
+          fontFamily: {
+            display: ['"Fraunces"', 'Georgia', 'serif'],
+            sans: ['"Manrope"', 'system-ui', 'sans-serif'],
+            mono: ['"IBM Plex Mono"', 'ui-monospace', 'monospace'],
+          },
+          boxShadow: {
+            soft: '0 10px 30px rgba(42, 38, 31, 0.06)',
+            card: '0 1px 0 rgba(255,255,255,0.8) inset, 0 12px 32px rgba(42, 38, 31, 0.07)',
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      background:
+        radial-gradient(900px 420px at 0% 0%, rgba(47, 128, 237, 0.10), transparent 55%),
+        radial-gradient(700px 380px at 100% 10%, rgba(31, 157, 99, 0.08), transparent 50%),
+        linear-gradient(180deg, #fbfaf7 0%, #f3f0e8 100%);
+      color: #1a1712;
+    }
+    .panel {
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid rgba(42, 38, 31, 0.08);
+      box-shadow: 0 12px 32px rgba(42, 38, 31, 0.06);
+      backdrop-filter: blur(10px);
+    }
+    .field {
+      width: 100%;
+      border-radius: 0.9rem;
+      border: 1.5px solid #ddd5c6;
+      background: #fff;
+      padding: 0.7rem 0.9rem;
+      font-size: 0.9rem;
+      color: #1a1712;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s, background .15s;
+    }
+    .field:hover { border-color: #c9bea8; }
+    .field:focus {
+      border-color: #2f80ed;
+      box-shadow: 0 0 0 4px rgba(47, 128, 237, 0.12);
+      background: #fff;
+    }
+    .field:disabled {
+      background: #f4f1ea;
+      color: #8a8376;
+      cursor: not-allowed;
+    }
+    .field-label {
+      display: block;
+      margin-bottom: 0.4rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: #6b6458;
+    }
+    /* custom select */
+    .c-select { position: relative; }
+    .c-select-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      border-radius: 0.9rem;
+      border: 1.5px solid #ddd5c6;
+      background: #fff;
+      padding: 0.7rem 0.9rem;
+      font-size: 0.9rem;
+      color: #1a1712;
+      text-align: left;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .c-select-btn:hover { border-color: #c9bea8; }
+    .c-select-btn.open, .c-select-btn:focus {
+      border-color: #2f80ed;
+      box-shadow: 0 0 0 4px rgba(47, 128, 237, 0.12);
+      outline: none;
+    }
+    .c-select-btn:disabled {
+      background: #f4f1ea;
+      color: #8a8376;
+      cursor: not-allowed;
+    }
+    .c-select-menu {
+      position: absolute;
+      z-index: 40;
+      left: 0; right: 0;
+      top: calc(100% + 6px);
+      border-radius: 0.9rem;
+      border: 1px solid #e5ddcf;
+      background: #fff;
+      box-shadow: 0 16px 40px rgba(42, 38, 31, 0.12);
+      padding: 0.35rem;
+      display: none;
+      max-height: 14rem;
+      overflow-y: auto;
+    }
+    .c-select-menu.open { display: block; }
+    .c-select-option {
+      width: 100%;
+      text-align: left;
+      border-radius: 0.65rem;
+      padding: 0.65rem 0.75rem;
+      font-size: 0.875rem;
+      color: #2a261f;
+      background: transparent;
+    }
+    .c-select-option:hover { background: #eff8ff; color: #1857ab; }
+    .c-select-option.active {
+      background: #dbeefe;
+      color: #1857ab;
+      font-weight: 600;
+    }
+    .chev {
+      width: 1rem; height: 1rem;
+      color: #8a8376;
+      transition: transform .15s;
+      flex-shrink: 0;
+    }
+    .c-select-btn.open .chev { transform: rotate(180deg); color: #2f80ed; }
+
+    .btn {
+      border-radius: 0.9rem;
+      padding: 0.7rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 700;
+      transition: transform .12s, filter .12s, box-shadow .12s, background .12s;
+    }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none !important; }
+    .btn-primary {
+      background: linear-gradient(135deg, #2f80ed, #1f9d63);
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(47, 128, 237, 0.2);
+    }
+    .btn-primary:hover:not(:disabled) { filter: brightness(1.04); transform: translateY(-1px); }
+    .btn-danger {
+      background: linear-gradient(135deg, #e11d48, #f43f5e);
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(225, 29, 72, 0.18);
+    }
+    .btn-danger:hover:not(:disabled) { filter: brightness(1.04); transform: translateY(-1px); }
+    .btn-ghost {
+      background: #fff;
+      border: 1.5px solid #ddd5c6;
+      color: #2a261f;
+    }
+    .btn-ghost:hover:not(:disabled) { border-color: #2f80ed; color: #1857ab; background: #f8fbff; }
+
+    .progress-bar {
+      background: linear-gradient(90deg, #2f80ed, #1f9d63 70%);
+      transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .log-line { animation: fadeSlide .22s ease-out; }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(3px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(.85); }
+    }
+    .pulse-live { animation: pulse-dot 1.4s ease-in-out infinite; }
+    #logBox, #successList, #keysList { scrollbar-width: thin; scrollbar-color: #d5cdb8 transparent; }
+    .tab-btn.active {
+      background: #fff;
+      color: #1857ab;
+      box-shadow: 0 1px 3px rgba(42,38,31,.08);
+      font-weight: 700;
+    }
+    .secret-wrap { position: relative; }
+    .secret-wrap .toggle-eye {
+      position: absolute;
+      right: 0.7rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #8a8376;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: none;
+      border: 0;
+      cursor: pointer;
+    }
+    .secret-wrap .field { padding-right: 3.2rem; }
+  </style>
+</head>
+<body class="h-full font-sans antialiased">
+  <div class="min-h-full">
+    <!-- Header -->
+    <header class="sticky top-0 z-30 border-b border-ink-900/5 bg-paper-50/90 backdrop-blur-md">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="h-11 w-11 rounded-2xl bg-gradient-to-br from-brand-500 to-leaf-500 text-white grid place-items-center shadow-soft font-display text-lg font-bold">G</div>
+          <div>
+            <h1 class="font-display text-2xl font-bold tracking-tight text-ink-900">Grok 注册控制台</h1>
+            <p class="text-xs text-ink-700/60 font-mono">配置 · 启动 · 实时日志 · Key 下载</p>
+          </div>
+        </div>
+        <div id="statusBadge" class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-mono border border-ink-900/10 bg-white shadow-sm">
+          <span id="statusDot" class="h-2 w-2 rounded-full bg-slate-400"></span>
+          <span id="statusText" class="text-ink-700">IDLE</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-5">
+      <!-- Stats -->
+      <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <article class="panel rounded-2xl p-4">
+          <p class="text-[11px] uppercase tracking-[0.16em] text-ink-700/50 font-semibold">成功</p>
+          <p id="statSuccess" class="mt-1 font-display text-3xl font-bold text-leaf-600">0</p>
+          <p class="text-xs text-ink-700/50 font-mono mt-1">目标 <span id="statTarget">0</span></p>
+        </article>
+        <article class="panel rounded-2xl p-4">
+          <p class="text-[11px] uppercase tracking-[0.16em] text-ink-700/50 font-semibold">失败尝试</p>
+          <p id="statFail" class="mt-1 font-display text-3xl font-bold text-rose-500">0</p>
+          <p class="text-xs text-ink-700/50 font-mono mt-1">含重试</p>
+        </article>
+        <article class="panel rounded-2xl p-4">
+          <p class="text-[11px] uppercase tracking-[0.16em] text-ink-700/50 font-semibold">平均速度</p>
+          <p id="statAvg" class="mt-1 font-display text-3xl font-bold text-brand-600">—</p>
+          <p class="text-xs text-ink-700/50 font-mono mt-1">秒 / 账号</p>
+        </article>
+        <article class="panel rounded-2xl p-4">
+          <p class="text-[11px] uppercase tracking-[0.16em] text-ink-700/50 font-semibold">已用时间</p>
+          <p id="statElapsed" class="mt-1 font-display text-3xl font-bold text-sun-500">0s</p>
+          <p class="text-xs text-ink-700/50 font-mono mt-1">线程 <span id="statWorkers">0</span></p>
+        </article>
+      </section>
+
+      <!-- Progress -->
+      <section class="panel rounded-2xl p-4 sm:p-5">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="font-display font-semibold text-ink-900">进度</h2>
+          <span id="progressLabel" class="font-mono text-sm font-semibold text-brand-600">0%</span>
+        </div>
+        <div class="h-3 rounded-full bg-paper-200 overflow-hidden">
+          <div id="progressBar" class="progress-bar h-full w-0 rounded-full"></div>
+        </div>
+        <div class="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs font-mono text-ink-700/60">
+          <span>输出：<span id="outputFile" class="text-ink-800">—</span></span>
+          <span>Action：<span id="actionId" class="text-ink-800">—</span></span>
+        </div>
+        <div class="mt-3 rounded-xl border border-ink-900/5 bg-paper-100/80 px-3 py-2.5">
+          <div class="flex items-center justify-between gap-3 mb-1.5">
+            <p class="text-[11px] uppercase tracking-[0.14em] text-ink-700/50 font-semibold">NSFW 进度</p>
+            <span id="nsfwProgressLabel" class="font-mono text-xs font-semibold text-brand-600">—</span>
+          </div>
+          <div class="h-2 rounded-full bg-paper-200 overflow-hidden">
+            <div id="nsfwProgressBar" class="progress-bar h-full w-0 rounded-full bg-gradient-to-r from-brand-500 to-leaf-500"></div>
+          </div>
+          <div class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs font-mono text-ink-700/70">
+            <span>完成 <span id="nsfwDone" class="text-leaf-600 font-semibold">0</span></span>
+            <span>成功 <span id="nsfwOk" class="text-leaf-600 font-semibold">0</span></span>
+            <span>失败 <span id="nsfwFail" class="text-rose-500 font-semibold">0</span></span>
+            <span>剩余 <span id="nsfwLeft" class="text-sun-500 font-semibold">0</span></span>
+            <span class="text-ink-700/45">线程 <span id="nsfwWorkers">0</span></span>
+          </div>
+        </div>
+      </section>
+
+      <div class="grid lg:grid-cols-12 gap-5">
+        <!-- Left column -->
+        <section class="lg:col-span-5 space-y-4">
+          <!-- Tabs: run / config -->
+          <div class="panel rounded-2xl overflow-hidden">
+            <div class="flex gap-1 p-1.5 bg-paper-100 border-b border-ink-900/5">
+              <button type="button" data-tab="run" class="tab-btn active flex-1 rounded-xl px-3 py-2 text-sm text-ink-700/70">运行</button>
+              <button type="button" data-tab="config" class="tab-btn flex-1 rounded-xl px-3 py-2 text-sm text-ink-700/70">配置</button>
+              <button type="button" data-tab="keys" class="tab-btn flex-1 rounded-xl px-3 py-2 text-sm text-ink-700/70">Keys</button>
+            </div>
+
+            <!-- RUN PANEL -->
+            <div id="tab-run" class="p-5 space-y-4">
+              <h2 class="font-display font-semibold text-ink-900">启动参数</h2>
+              <form id="startForm" class="space-y-4">
+                <div>
+                  <label class="field-label" for="workers">并发线程</label>
+                  <div class="c-select" data-select="workers">
+                    <button type="button" class="c-select-btn" id="workersBtn" aria-haspopup="listbox">
+                      <span class="value">8 线程</span>
+                      <svg class="chev" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                    </button>
+                    <div class="c-select-menu" role="listbox"></div>
+                    <input type="hidden" id="workers" name="workers" value="8" />
+                  </div>
+                </div>
+                <div>
+                  <label class="field-label" for="target">注册数量</label>
+                  <div class="c-select" data-select="target">
+                    <button type="button" class="c-select-btn" id="targetBtn" aria-haspopup="listbox">
+                      <span class="value">100 个</span>
+                      <svg class="chev" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                    </button>
+                    <div class="c-select-menu" role="listbox"></div>
+                    <input type="hidden" id="target" name="target" value="100" />
+                  </div>
+                  <p class="mt-1.5 text-[11px] text-ink-700/50">也可在下方自定义数量</p>
+                  <input id="targetCustom" type="number" min="1" max="100000" placeholder="自定义数量，例如 25"
+                         class="field mt-2" />
+                </div>
+                <div class="grid grid-cols-2 gap-3 pt-1">
+                  <button id="btnStart" type="submit" class="btn btn-primary">启动注册</button>
+                  <button id="btnStop" type="button" class="btn btn-danger" disabled>停止</button>
+                </div>
+              </form>
+              <p id="formMessage" class="text-xs font-mono min-h-[1.1rem] text-ink-700/50"></p>
+
+              <div class="rounded-xl bg-paper-100 border border-ink-900/5 p-3 text-xs text-ink-700/70 space-y-1.5">
+                <div class="flex justify-between gap-2"><span>Worker</span><span id="envWorker" class="font-mono text-ink-800 truncate max-w-[58%] text-right">—</span></div>
+                <div class="flex justify-between gap-2"><span>邮箱后缀</span><span id="envMailDomain" class="font-mono text-ink-800">—</span></div>
+                <div class="flex justify-between gap-2"><span>Token</span><span id="envToken" class="font-mono text-ink-800">—</span></div>
+                <div class="flex justify-between gap-2"><span>验证码</span><span id="envYes" class="font-mono text-ink-800">—</span></div>
+                <div class="flex justify-between gap-2"><span>Solver URL</span><span id="envSolver" class="font-mono text-brand-600">—</span></div>
+                <div class="flex justify-between gap-2"><span>sub2api Grok</span><span id="envUpstream" class="font-mono text-ink-800 truncate max-w-[58%] text-right">—</span></div>
+              </div>
+
+              <!-- Turnstile Solver 控制 -->
+              <div class="rounded-xl border border-ink-900/8 bg-white p-4 space-y-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 class="font-display font-semibold text-ink-900 text-sm">Turnstile Solver</h3>
+                    <p id="solverMessage" class="text-[11px] text-ink-700/55 mt-0.5 font-mono">检测中…</p>
+                  </div>
+                  <span id="solverBadge" class="shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-ink-900/5 text-ink-700/60">—</span>
+                </div>
+                <div class="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] text-ink-700/65 font-mono">
+                  <div class="flex justify-between gap-2"><span class="text-ink-700/45">状态</span><span id="solverReady">—</span></div>
+                  <div class="flex justify-between gap-2"><span class="text-ink-700/45">PID</span><span id="solverPid">—</span></div>
+                  <div class="flex justify-between gap-2"><span class="text-ink-700/45">浏览器</span><span id="solverBrowser">—</span></div>
+                  <div class="flex justify-between gap-2"><span class="text-ink-700/45">线程</span><span id="solverThreads">—</span></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 pt-0.5">
+                  <button type="button" id="btnSolverStart" class="btn btn-primary text-xs py-2">启动 Solver</button>
+                  <button type="button" id="btnSolverStop" class="btn btn-danger text-xs py-2" disabled>停止 Solver</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- CONFIG PANEL -->
+            <div id="tab-config" class="p-5 space-y-4 hidden">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <h2 class="font-display font-semibold text-ink-900">环境配置</h2>
+                  <p class="text-xs text-ink-700/55 mt-1">保存后写入项目根目录 <code class="font-mono">.env</code></p>
+                </div>
+                <button type="button" id="btnReloadConfig" class="btn btn-ghost text-xs px-3 py-1.5">重新加载</button>
+              </div>
+
+              <form id="configForm" class="space-y-3.5">
+                <div>
+                  <label class="field-label" for="cfgWorker">WORKER_DOMAIN <span class="text-rose-500">*</span></label>
+                  <input id="cfgWorker" class="field font-mono text-sm" placeholder="your-freemail-domain.com" autocomplete="off" />
+                  <p class="mt-1 text-[11px] text-ink-700/45">freemail 服务域名，不要带 https://</p>
+                </div>
+
+                <div>
+                  <label class="field-label" for="cfgToken">FREEMAIL_TOKEN <span class="text-rose-500">*</span></label>
+                  <div class="secret-wrap">
+                    <input id="cfgToken" type="password" class="field font-mono text-sm" placeholder="站点密码 / JWT" autocomplete="off" />
+                    <button type="button" class="toggle-eye" data-target="cfgToken">显示</button>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="flex items-center justify-between gap-2 mb-1.5">
+                    <label class="field-label" style="margin-bottom:0" for="cfgMailDomain">FREEMAIL_DOMAIN</label>
+                    <button type="button" id="btnFetchDomains" class="btn btn-ghost text-[11px] px-2.5 py-1">拉取域名</button>
+                  </div>
+                  <div class="c-select" data-select="cfgMailDomain">
+                    <button type="button" class="c-select-btn" id="cfgMailDomainBtn">
+                      <span class="value">自动（服务端默认）</span>
+                      <svg class="chev" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                    </button>
+                    <div class="c-select-menu" role="listbox"></div>
+                    <input type="hidden" id="cfgMailDomain" value="auto" />
+                  </div>
+                  <p id="mailDomainHint" class="mt-1 text-[11px] text-ink-700/45">点击「拉取域名」从 freemail 自动获取可用后缀</p>
+                </div>
+
+                <div>
+                  <label class="field-label">验证码模式</label>
+                  <div class="c-select" data-select="captchaMode">
+                    <button type="button" class="c-select-btn" id="captchaModeBtn">
+                      <span class="value">本地 Turnstile Solver</span>
+                      <svg class="chev" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                    </button>
+                    <div class="c-select-menu" role="listbox"></div>
+                    <input type="hidden" id="captchaMode" value="local" />
+                  </div>
+                </div>
+
+                <div id="yesCaptchaBlock" class="hidden">
+                  <label class="field-label" for="cfgYes">YESCAPTCHA_KEY</label>
+                  <div class="secret-wrap">
+                    <input id="cfgYes" type="password" class="field font-mono text-sm" placeholder="YesCaptcha API Key" autocomplete="off" />
+                    <button type="button" class="toggle-eye" data-target="cfgYes">显示</button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="field-label" for="cfgSolver">SOLVER_URL</label>
+                  <input id="cfgSolver" class="field font-mono text-sm" placeholder="http://127.0.0.1:5072" />
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="field-label">SOLVER_BROWSER</label>
+                    <div class="c-select" data-select="cfgSolverBrowser">
+                      <button type="button" class="c-select-btn" id="cfgSolverBrowserBtn">
+                        <span class="value">camoufox</span>
+                        <svg class="chev" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                      </button>
+                      <div class="c-select-menu" role="listbox"></div>
+                      <input type="hidden" id="cfgSolverBrowser" value="camoufox" />
+                    </div>
+                  </div>
+                  <div>
+                    <label class="field-label" for="cfgSolverThreads">SOLVER_THREADS</label>
+                    <input id="cfgSolverThreads" class="field font-mono text-sm" type="number" min="1" max="16" placeholder="2" />
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="field-label" for="cfgUiHost">UI_HOST</label>
+                    <input id="cfgUiHost" class="field font-mono text-sm" placeholder="127.0.0.1" />
+                  </div>
+                  <div>
+                    <label class="field-label" for="cfgUiPort">UI_PORT</label>
+                    <input id="cfgUiPort" class="field font-mono text-sm" placeholder="3333" />
+                  </div>
+                </div>
+
+                <div class="pt-2 border-t border-ink-900/5">
+                  <h3 class="font-display font-semibold text-ink-900 text-sm mb-1">sub2api Grok（HTTP）</h3>
+                  <p class="text-[11px] text-ink-700/50 mb-3">经 Admin API 导入 Grok 分组，只需服务地址、管理员账号和分组信息</p>
+                  <div class="space-y-3">
+                    <div>
+                      <label class="field-label" for="cfgUpstreamUrl">SUB2API_URL</label>
+                      <input id="cfgUpstreamUrl" class="field font-mono text-sm" placeholder="http://127.0.0.1:9898" autocomplete="off" />
+                      <p class="mt-1 text-[11px] text-ink-700/45">sub2api Web 地址，账号创建和更新均走 HTTP Admin API</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div>
+                        <label class="field-label" for="cfgSub2GroupId">SUB2API_GROK_GROUP_ID</label>
+                        <input id="cfgSub2GroupId" class="field font-mono text-sm" placeholder="23" autocomplete="off" />
+                      </div>
+                      <div>
+                        <label class="field-label" for="cfgSub2GroupName">SUB2API_GROK_GROUP_NAME</label>
+                        <input id="cfgSub2GroupName" class="field font-mono text-sm" placeholder="grok" autocomplete="off" />
+                      </div>
+                    </div>
+                    <p class="text-[11px] text-ink-700/45 -mt-1">ID 与名称须与 sub2api 后台 Grok 分组完全一致（连通性测试会校验）</p>
+                    <div>
+                      <label class="field-label" for="cfgUpstreamEmail">UPSTREAM_ADMIN_EMAIL</label>
+                      <input id="cfgUpstreamEmail" class="field font-mono text-sm" placeholder="管理员邮箱" autocomplete="username" />
+                    </div>
+                    <div>
+                      <label class="field-label" for="cfgUpstreamPwd">UPSTREAM_ADMIN_PASSWORD</label>
+                      <div class="secret-wrap">
+                        <input id="cfgUpstreamPwd" type="password" class="field font-mono text-sm" placeholder="管理员密码" autocomplete="current-password" />
+                        <button type="button" class="toggle-eye" data-target="cfgUpstreamPwd">显示</button>
+                      </div>
+                    </div>
+                    <div class="flex gap-2">
+                      <button type="button" id="btnTestUpstream" class="btn btn-ghost flex-1 text-xs py-2">测试连通性</button>
+                    </div>
+                    <p id="upstreamTestMessage" class="text-[11px] font-mono min-h-[1.1rem] text-ink-700/50"></p>
+                  </div>
+                </div>
+
+                <div class="flex gap-3 pt-1">
+                  <button type="submit" id="btnSaveConfig" class="btn btn-primary flex-1">保存配置</button>
+                </div>
+                <p id="configMessage" class="text-xs font-mono min-h-[1.1rem] text-ink-700/50"></p>
+              </form>
+            </div>
+
+            <!-- KEYS PANEL -->
+            <div id="tab-keys" class="p-5 space-y-3 hidden">
+              <div class="flex items-center justify-between">
+                <h2 class="font-display font-semibold text-ink-900">Key 文件</h2>
+                <button id="btnRefreshKeys" type="button" class="btn btn-ghost text-xs px-3 py-1.5">刷新</button>
+              </div>
+              <ul id="keysList" class="space-y-2 max-h-80 overflow-y-auto text-xs font-mono">
+                <li class="text-ink-700/50">暂无文件</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- Right: logs -->
+        <section class="lg:col-span-7 space-y-4">
+          <div class="panel rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="font-display font-semibold text-ink-900">实时日志</h2>
+              <div class="flex items-center gap-3">
+                <span id="logConnBadge" class="text-[11px] font-mono text-ink-700/40">连接中…</span>
+                <label class="inline-flex items-center gap-1.5 text-xs text-ink-700/60 font-mono cursor-pointer select-none">
+                  <input id="autoScroll" type="checkbox" checked class="rounded border-paper-300 text-brand-500 focus:ring-brand-500/30" />
+                  自动滚动
+                </label>
+                <button id="btnClearLogs" type="button" class="text-xs font-mono text-ink-700/55 hover:text-sun-500">清空</button>
+              </div>
+            </div>
+            <div id="logBox" class="h-[28rem] overflow-y-auto rounded-xl bg-paper-50 border border-ink-900/5 p-3 font-mono text-[12px] leading-relaxed space-y-1">
+              <div class="text-ink-700/40">等待日志...</div>
+            </div>
+          </div>
+
+          <div class="panel rounded-2xl p-5">
+            <div class="flex items-center justify-between gap-3 mb-3">
+              <div>
+                <h2 class="font-display font-semibold text-ink-900">最近成功</h2>
+                <p id="upstreamHint" class="text-[11px] text-ink-700/45 mt-0.5 font-mono">配置 sub2api 后可导入</p>
+              </div>
+              <button type="button" id="btnImportAll" class="btn btn-primary text-xs px-3 py-1.5 shrink-0" disabled>全部导入 sub2api</button>
+            </div>
+            <p id="importMessage" class="text-[11px] font-mono min-h-[1rem] text-ink-700/50 mb-2"></p>
+            <div id="successList" class="max-h-64 overflow-y-auto space-y-2 font-mono text-xs">
+              <p class="text-ink-700/45">成功账号会显示在这里</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="max-w-7xl mx-auto px-4 sm:px-6 pb-8 pt-1 text-center text-[11px] font-mono text-ink-700/40">
+      仅本机访问 · 也可使用 <span class="text-ink-700/60">python grok.py</span> 命令行
+    </footer>
+  </div>
+  <div id="toastHost" aria-live="polite"></div>
+
+  <script>
+    const state = {
+      afterId: 0,
+      running: false,
+      lastStatus: null,
+      pollInFlight: false,
+      seenLogIds: new Set(),
+      starting: false,
+      importing: false,
+      upstreamConfigured: false,
+      pollFailCount: 0,
+      serverConnected: false,
+      lastToastStatus: null,
+      importJobId: null,
+      importFinishedToastId: null,
+    };
+
+    function setLogConnBadge(ok, text) {
+      const el = $('logConnBadge');
+      if (!el) return;
+      el.textContent = text || (ok ? '已连接' : '断线');
+      el.className = ok
+        ? 'text-[11px] font-mono text-leaf-600'
+        : 'text-[11px] font-mono text-rose-500';
+    }
+
+    const $ = (id) => document.getElementById(id);
+
+    const levelClass = {
+      info: 'text-ink-800',
+      success: 'text-leaf-600',
+      warn: 'text-sun-500',
+      error: 'text-rose-500',
+    };
+
+    const statusStyle = {
+      idle: { dot: 'bg-slate-400', text: 'IDLE' },
+      initializing: { dot: 'bg-sun-500 pulse-live', text: 'INIT' },
+      running: { dot: 'bg-leaf-500 pulse-live', text: 'RUNNING' },
+      stopping: { dot: 'bg-sun-500 pulse-live', text: 'STOPPING' },
+      done: { dot: 'bg-brand-500', text: 'DONE' },
+      error: { dot: 'bg-rose-500', text: 'ERROR' },
+    };
+
+    /* ---------- Custom Select ---------- */
+    function initSelect(root, options, initialValue, onChange) {
+      const btn = root.querySelector('.c-select-btn');
+      const menu = root.querySelector('.c-select-menu');
+      const hidden = root.querySelector('input[type="hidden"]');
+      const valueEl = btn.querySelector('.value');
+      let opts = options.slice();
+
+      function render(active) {
+        menu.innerHTML = opts.map(opt => {
+          const activeCls = String(opt.value) === String(active) ? 'active' : '';
+          return `<button type="button" role="option" class="c-select-option ${activeCls}" data-value="${escapeHtml(String(opt.value))}">${escapeHtml(opt.label)}</button>`;
+        }).join('');
+      }
+
+      function setValue(val, silent = false) {
+        let found = opts.find(o => String(o.value) === String(val));
+        if (!found && val != null && val !== '') {
+          // 保留已选但未在列表中的值（例如尚未拉取域名）
+          found = { value: val, label: String(val) };
+          opts = [found, ...opts.filter(o => String(o.value) !== String(val))];
+        }
+        if (!found) found = opts[0];
+        hidden.value = found.value;
+        valueEl.textContent = found.label;
+        render(found.value);
+        if (!silent && onChange) onChange(found.value);
+      }
+
+      function setOptions(next, keepValue = true) {
+        const cur = keepValue ? hidden.value : (next[0] && next[0].value);
+        opts = next.slice();
+        setValue(cur, true);
+      }
+
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (btn.disabled) return;
+        const open = !menu.classList.contains('open');
+        document.querySelectorAll('.c-select-menu.open').forEach(m => m.classList.remove('open'));
+        document.querySelectorAll('.c-select-btn.open').forEach(b => b.classList.remove('open'));
+        if (open) {
+          menu.classList.add('open');
+          btn.classList.add('open');
+        }
+      });
+
+      menu.addEventListener('click', (e) => {
+        const opt = e.target.closest('.c-select-option');
+        if (!opt) return;
+        setValue(opt.dataset.value);
+        menu.classList.remove('open');
+        btn.classList.remove('open');
+      });
+
+      setValue(initialValue, true);
+      root._setValue = setValue;
+      root._setOptions = setOptions;
+      root._setDisabled = (d) => { btn.disabled = !!d; };
+      return root;
+    }
+
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.c-select-menu.open').forEach(m => m.classList.remove('open'));
+      document.querySelectorAll('.c-select-btn.open').forEach(b => b.classList.remove('open'));
+    });
+
+    const workerSelect = initSelect(
+      document.querySelector('[data-select="workers"]'),
+      [1,2,3,4,5,6,8,10,12,16,20,24,32].map(n => ({ value: n, label: `${n} 线程` })),
+      8
+    );
+
+    const targetSelect = initSelect(
+      document.querySelector('[data-select="target"]'),
+      [1,5,10,20,50,100,200,500,1000].map(n => ({ value: n, label: `${n} 个` })),
+      100,
+      (val) => { $('targetCustom').value = ''; }
+    );
+
+    const solverBrowserSelect = initSelect(
+      document.querySelector('[data-select="cfgSolverBrowser"]'),
+      [
+        { value: 'camoufox', label: 'camoufox' },
+        { value: 'chromium', label: 'chromium' },
+        { value: 'chrome', label: 'chrome' },
+        { value: 'msedge', label: 'msedge' },
+      ],
+      'camoufox'
+    );
+
+    const captchaSelect = initSelect(
+      document.querySelector('[data-select="captchaMode"]'),
+      [
+        { value: 'local', label: '本地 Turnstile Solver' },
+        { value: 'yescaptcha', label: 'YesCaptcha API' },
+      ],
+      'local',
+      (val) => {
+        $('yesCaptchaBlock').classList.toggle('hidden', val !== 'yescaptcha');
+      }
+    );
+
+    const AUTO_DOMAIN_OPT = { value: 'auto', label: '自动（服务端默认）' };
+    const mailDomainSelect = initSelect(
+      document.querySelector('[data-select="cfgMailDomain"]'),
+      [AUTO_DOMAIN_OPT],
+      'auto'
+    );
+
+    function buildDomainOptions(domains, defaults) {
+      const opts = [AUTO_DOMAIN_OPT];
+      const defSet = new Set((defaults || []).map(String));
+      for (const d of domains || []) {
+        const v = String(d).trim();
+        if (!v || v === 'auto') continue;
+        const tag = defSet.has(v) ? '（默认）' : '';
+        opts.push({ value: v, label: tag ? `${v} ${tag}` : v });
+      }
+      return opts;
+    }
+
+    $('targetCustom').addEventListener('input', () => {
+      const v = $('targetCustom').value.trim();
+      if (v) {
+        // show custom on button text without breaking select options
+        const btn = document.querySelector('[data-select="target"] .value');
+        btn.textContent = `${v} 个（自定义）`;
+        $('target').value = v;
+      }
+    });
+
+    /* ---------- Tabs ---------- */
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        ['run', 'config', 'keys'].forEach(name => {
+          $('tab-' + name).classList.toggle('hidden', btn.dataset.tab !== name);
+        });
+        if (btn.dataset.tab === 'keys') refreshKeys();
+        if (btn.dataset.tab === 'config') loadConfig();
+      });
+    });
+
+    /* ---------- Helpers ---------- */
+    function setMessage(el, msg, ok = true) {
+      el.textContent = msg || '';
+      el.className = `text-xs font-mono min-h-[1.1rem] ${ok ? 'text-leaf-600' : 'text-rose-500'}`;
+    }
+
+    function showToast(msg, kind = 'ok', ms = 4500) {
+      if (!msg) return;
+      const host = $('toastHost');
+      if (!host) return;
+      const el = document.createElement('div');
+      el.className = `toast ${kind === 'error' || kind === 'err' ? 'err' : kind === 'warn' ? 'warn' : 'ok'}`;
+      el.textContent = msg;
+      host.appendChild(el);
+      const hide = () => {
+        el.classList.add('hide');
+        setTimeout(() => el.remove(), 280);
+      };
+      el.addEventListener('click', hide);
+      setTimeout(hide, ms);
+    }
+
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+    }
+
+    async function fetchJSON(url, options) {
+      const res = await fetch(url, options);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = new Error(data.message || `HTTP ${res.status}`);
+        err.data = data;
+        throw err;
+      }
+      return data;
+    }
+
+    function appendLogs(entries) {
+      if (!entries.length) return;
+      const box = $('logBox');
+      if (box.querySelector('.text-ink-700\\/40') && box.children.length === 1) box.innerHTML = '';
+      let added = 0;
+      for (const e of entries) {
+        // 按 id 去重：并发轮询 / 多标签不会刷同一条
+        if (e.id != null) {
+          if (state.seenLogIds.has(e.id)) {
+            state.afterId = Math.max(state.afterId, e.id);
+            continue;
+          }
+          state.seenLogIds.add(e.id);
+          // 限制集合大小
+          if (state.seenLogIds.size > 2000) {
+            const keepFrom = e.id - 1500;
+            state.seenLogIds = new Set([...state.seenLogIds].filter(id => id >= keepFrom));
+          }
+        }
+        const row = document.createElement('div');
+        row.className = `log-line ${levelClass[e.level] || levelClass.info}`;
+        row.innerHTML = `<span class="text-ink-700/35">[${e.time}]</span> ${escapeHtml(e.message)}`;
+        box.appendChild(row);
+        state.afterId = Math.max(state.afterId, e.id || 0);
+        added += 1;
+      }
+      while (box.children.length > 800) box.removeChild(box.firstChild);
+      if (added && $('autoScroll').checked) box.scrollTop = box.scrollHeight;
+    }
+
+    function renderStatus(data) {
+      const prevStatus = state.lastStatus && state.lastStatus.status;
+      const prevPending = state.lastStatus
+        ? Number(state.lastStatus.enrich_pending || 0)
+        : 0;
+      state.lastStatus = data;
+      const st = data.status || 'idle';
+      const enrichPending = Number(data.enrich_pending || 0);
+      const style = statusStyle[st] || statusStyle.idle;
+      $('statusDot').className = `h-2 w-2 rounded-full ${style.dot}`;
+      $('statusText').textContent = style.text;
+
+      // 任务结束 / 出错时右上角 toast（仅状态变化时弹一次）
+      if (st !== prevStatus && st !== state.lastToastStatus) {
+        if (st === 'done') {
+          const ok = data.success_count ?? 0;
+          const target = data.target_count ?? 0;
+          const fail = data.fail_count ?? 0;
+          const avg = data.avg_seconds ? ` · 平均 ${data.avg_seconds}s` : '';
+          const extra = enrichPending > 0 ? ` · 后台仍有 ${enrichPending} 个处理中` : '';
+          showToast(
+            `任务结束：成功 ${ok}/${target}，失败尝试 ${fail}${avg}${extra}`,
+            ok > 0 ? (enrichPending > 0 ? 'warn' : 'ok') : 'warn',
+            6000
+          );
+          state.lastToastStatus = st;
+        } else if (st === 'error') {
+          showToast(`任务出错：${data.error_message || '未知错误'}`, 'err', 7000);
+          state.lastToastStatus = st;
+        } else if (st === 'running' || st === 'initializing') {
+          state.lastToastStatus = null;
+        }
+      }
+
+      // 后台换 token / NSFW 全部处理完（enrichPending 从 >0 降到 0）
+      // 注册仍在跑时可能短暂归零，只在任务已结束/停止后提示，避免刷屏
+      if (
+        prevPending > 0 &&
+        enrichPending === 0 &&
+        (st === 'done' || st === 'idle' || st === 'stopping' || !data.running)
+      ) {
+        const ok = data.success_count ?? 0;
+        showToast(
+          `后台 token / NSFW 已全部处理完成${ok ? `（本批成功 ${ok}）` : ''}`,
+          'ok',
+          5500
+        );
+      }
+
+      // 后台导入进度（不阻塞页面）
+      if (data.import_job) {
+        if (data.import_job.recent_success && !data.import_job.running) {
+          data.recent_success = data.import_job.recent_success;
+        }
+        applyImportJob(data.import_job);
+      }
+
+      $('statSuccess').textContent = data.success_count ?? 0;
+      $('statTarget').textContent = data.target_count ?? 0;
+      $('statFail').textContent = data.fail_count ?? 0;
+      $('statAvg').textContent = data.avg_seconds ? `${data.avg_seconds}s` : '—';
+      $('statElapsed').textContent = `${data.elapsed ?? 0}s`;
+      $('statWorkers').textContent = data.workers ?? 0;
+      $('progressLabel').textContent = `${data.progress ?? 0}%`;
+      $('progressBar').style.width = `${data.progress ?? 0}%`;
+      $('outputFile').textContent = data.output_file || '—';
+      $('actionId').textContent = data.action_id ? data.action_id.slice(0, 18) + '…' : '—';
+
+      // NSFW 后台：完成 / 剩余
+      const nsfwOk = Number(data.nsfw_ok_count || 0);
+      const nsfwFail = Number(data.nsfw_fail_count || 0);
+      const nsfwDone = Number(data.nsfw_done_count != null ? data.nsfw_done_count : (nsfwOk + nsfwFail));
+      const nsfwLeft = Number(data.enrich_pending || 0);
+      const nsfwTotal = nsfwDone + nsfwLeft;
+      const nsfwPct = nsfwTotal > 0 ? Math.min(100, Math.round(nsfwDone / nsfwTotal * 100)) : 0;
+      if ($('nsfwDone')) $('nsfwDone').textContent = String(nsfwDone);
+      if ($('nsfwOk')) $('nsfwOk').textContent = String(nsfwOk);
+      if ($('nsfwFail')) $('nsfwFail').textContent = String(nsfwFail);
+      if ($('nsfwLeft')) $('nsfwLeft').textContent = String(nsfwLeft);
+      if ($('nsfwWorkers')) $('nsfwWorkers').textContent = String(data.enrich_workers ?? 0);
+      if ($('nsfwProgressLabel')) {
+        $('nsfwProgressLabel').textContent = nsfwTotal > 0
+          ? `${nsfwPct}% · ${nsfwDone}/${nsfwTotal}`
+          : '—';
+      }
+      if ($('nsfwProgressBar')) {
+        $('nsfwProgressBar').style.width = `${nsfwPct}%`;
+      }
+
+      state.running = !!data.running;
+      $('btnStart').disabled = state.running;
+      $('btnStop').disabled = !state.running;
+      workerSelect._setDisabled(state.running);
+      targetSelect._setDisabled(state.running);
+      $('targetCustom').disabled = state.running;
+      $('btnSaveConfig').disabled = state.running;
+
+      if (data.env) {
+        const okW = data.env.worker_domain_set;
+        const okT = data.env.freemail_token_set;
+        $('envWorker').textContent = okW ? (data.env.worker_domain || '已配置') : '未配置';
+        $('envWorker').className = `font-mono truncate max-w-[58%] text-right ${okW ? 'text-leaf-600' : 'text-rose-500'}`;
+        const md = data.env.freemail_domain || 'auto';
+        $('envMailDomain').textContent = md === 'auto' ? '自动' : md;
+        $('envMailDomain').className = 'font-mono text-ink-800';
+        $('envToken').textContent = okT ? '已配置' : '未配置';
+        $('envToken').className = `font-mono ${okT ? 'text-leaf-600' : 'text-rose-500'}`;
+        $('envYes').textContent = data.env.yescaptcha_set ? 'YesCaptcha' : '本地 Solver';
+        $('envYes').className = 'font-mono text-ink-800';
+        $('envSolver').textContent = data.env.solver_url || 'http://127.0.0.1:5072';
+        const upOk = !!data.env.upstream_configured;
+        const upUrl = data.env.upstream_url || '';
+        $('envUpstream').textContent = upOk ? (upUrl || '已配置') : (upUrl ? '待配置' : '未配置');
+        $('envUpstream').className = `font-mono truncate max-w-[58%] text-right ${upOk ? 'text-leaf-600' : 'text-rose-500'}`;
+        if ($('upstreamHint')) {
+          $('upstreamHint').textContent = upOk
+            ? `sub2api: ${upUrl}`
+            : '请在「配置」填写 sub2api 地址并保存';
+        }
+        state.upstreamConfigured = upOk;
+      }
+
+      if (data.solver) renderSolver(data.solver);
+
+      const list = $('successList');
+      const items = data.recent_success || [];
+      const pending = items.filter(it => it.sso && !it.imported);
+      if ($('btnImportAll')) {
+        const job = data.import_job || {};
+        const jobRunning = !!job.running || job.status === 'running' || state.importing;
+        $('btnImportAll').disabled = !state.upstreamConfigured || pending.length === 0 || jobRunning;
+        if (jobRunning) {
+          const t = job.total || 0;
+          const d = job.done || 0;
+          $('btnImportAll').textContent = t ? `导入中 ${d}/${t}` : '导入中…';
+        } else {
+          $('btnImportAll').textContent = pending.length
+            ? `导入未推送 (${pending.length})`
+            : '全部导入 sub2api';
+        }
+      }
+      if (!items.length) {
+        list.innerHTML = '<p class="text-ink-700/45">成功账号会显示在这里</p>';
+      } else {
+        list.innerHTML = items.map(it => {
+          const canImport = state.upstreamConfigured && it.sso && !it.imported && !state.importing;
+          const importedBadge = it.imported
+            ? '<span class="text-leaf-600">已导入</span>'
+            : (it.sso ? '<span class="text-ink-700/40">未导入</span>' : '');
+          return `
+          <div class="flex items-center justify-between gap-3 rounded-xl border border-ink-900/5 bg-paper-50 px-3 py-2">
+            <div class="min-w-0">
+              <div class="text-leaf-600 truncate font-semibold">${escapeHtml(it.email || '')}</div>
+              <div class="text-ink-700/45 truncate">${escapeHtml(it.sso_preview || '')}</div>
+            </div>
+            <div class="shrink-0 text-right space-y-1">
+              <div class="${it.nsfw ? 'text-brand-600' : 'text-sun-500'}">${it.nsfw ? 'NSFW ✓' : 'NSFW ✗'}</div>
+              <div class="text-ink-700/35">${escapeHtml(it.time || '')}</div>
+              <div class="flex items-center justify-end gap-2">
+                ${importedBadge}
+                <button type="button"
+                  class="btn-import-one text-[11px] font-semibold ${canImport ? 'text-brand-600 hover:underline' : 'text-ink-700/30 cursor-not-allowed'}"
+                  data-id="${escapeHtml(it.id || '')}"
+                  ${canImport ? '' : 'disabled'}>导入</button>
+              </div>
+            </div>
+          </div>`;
+        }).join('');
+      }
+    }
+
+    async function pollOnce() {
+      // 严格串行：同一时间只允许一次 logs 请求，杜绝 afterId 竞态刷屏
+      if (state.pollInFlight) return;
+      state.pollInFlight = true;
+      try {
+        // 先拉状态（轻量），再拉日志；afterId 始终用最新值
+        const status = await fetchJSON('/api/status');
+        renderStatus(status);
+        let after = state.afterId;
+        let logs = await fetchJSON(`/api/logs?after_id=${after}&limit=200`);
+        // 服务重启后 afterId 会大于 latest_id，必须重置否则永远看不到新日志
+        if (logs.reset || (logs.latest_id != null && after > logs.latest_id)) {
+          state.afterId = 0;
+          state.seenLogIds = new Set();
+          logs = await fetchJSON('/api/logs?after_id=0&limit=200');
+        }
+        appendLogs(logs.logs || []);
+        state.pollFailCount = 0;
+        if (!state.serverConnected) {
+          state.serverConnected = true;
+          setLogConnBadge(true, '已连接');
+        }
+      } catch (err) {
+        state.pollFailCount = (state.pollFailCount || 0) + 1;
+        state.serverConnected = false;
+        if (state.pollFailCount === 1 || state.pollFailCount % 5 === 0) {
+          setLogConnBadge(false, '控制台断线，重连中…');
+          const box = $('logBox');
+          if (box && !box.querySelector('[data-conn-err]')) {
+            const row = document.createElement('div');
+            row.dataset.connErr = '1';
+            row.className = 'log-line text-rose-500';
+            row.innerHTML = `<span class="text-ink-700/35">[--:--:--]</span> 无法连接控制台（:3333）。请确认 python app.py 在运行，页面会自动重连。`;
+            box.appendChild(row);
+            if ($('autoScroll') && $('autoScroll').checked) box.scrollTop = box.scrollHeight;
+          }
+        }
+      } finally {
+        state.pollInFlight = false;
+      }
+    }
+
+    function renderSolver(s) {
+      if (!s) return;
+      const ready = !!s.ready;
+      const running = !!s.process_running;
+      const busy = !!s.busy;
+      const depsOk = !s.dependencies || s.dependencies.ok !== false;
+      $('solverMessage').textContent = s.message || '—';
+      // 忙碌 = 进程在解验证码，不是离线
+      if (busy) {
+        $('solverReady').textContent = '忙碌';
+        $('solverReady').className = 'text-sun-500 font-semibold';
+      } else {
+        $('solverReady').textContent = ready ? '在线' : (running ? '启动中' : '离线');
+        $('solverReady').className = ready ? 'text-leaf-600 font-semibold' : (running ? 'text-sun-500' : 'text-rose-500');
+      }
+      $('solverPid').textContent = s.pid || '—';
+      $('solverBrowser').textContent = s.browser || '—';
+      $('solverThreads').textContent = s.threads ?? '—';
+      const badge = $('solverBadge');
+      if (!depsOk) {
+        badge.textContent = '依赖缺失';
+        badge.className = 'shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-rose-500/10 text-rose-600';
+      } else if (busy) {
+        badge.textContent = '忙碌';
+        badge.className = 'shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-sun-500/15 text-sun-600';
+      } else if (ready) {
+        badge.textContent = '在线';
+        badge.className = 'shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-leaf-500/15 text-leaf-600';
+      } else if (running) {
+        badge.textContent = '启动中';
+        badge.className = 'shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-sun-500/15 text-sun-600';
+      } else {
+        badge.textContent = '离线';
+        badge.className = 'shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold bg-ink-900/5 text-ink-700/60';
+      }
+      $('btnSolverStart').disabled = ready || running || busy;
+      $('btnSolverStop').disabled = !ready && !running && !busy;
+    }
+
+    async function fetchMailDomains(silent = false) {
+      const worker = $('cfgWorker').value.trim();
+      const token = $('cfgToken').value.trim();
+      const hint = $('mailDomainHint');
+      if (!worker) {
+        if (!silent) {
+          hint.textContent = '请先填写 WORKER_DOMAIN 再拉取';
+          hint.className = 'mt-1 text-[11px] text-rose-500';
+        }
+        return null;
+      }
+      const params = new URLSearchParams({ worker_domain: worker, token: token });
+      if (!silent) {
+        hint.textContent = '正在从 freemail 拉取域名…';
+        hint.className = 'mt-1 text-[11px] text-ink-700/55';
+        $('btnFetchDomains').disabled = true;
+      }
+      try {
+        const res = await fetch('/api/mail-domains?' + params.toString());
+        const data = await res.json().catch(() => ({}));
+        const domains = data.domains || [];
+        const defaults = data.default_domains || [];
+        const selected = data.selected || $('cfgMailDomain').value || 'auto';
+        mailDomainSelect._setOptions(buildDomainOptions(domains, defaults), true);
+        // 若当前选中不在列表且不是 auto，保留；否则用接口 selected
+        const cur = $('cfgMailDomain').value;
+        if (cur && (cur === 'auto' || domains.includes(cur))) {
+          mailDomainSelect._setValue(cur === 'auto' ? (selected || 'auto') : cur, true);
+        } else if (selected) {
+          mailDomainSelect._setValue(selected, true);
+        }
+        if (data.ok) {
+          hint.textContent = data.message || `已拉取 ${domains.length} 个域名`;
+          hint.className = 'mt-1 text-[11px] text-leaf-600';
+        } else {
+          hint.textContent = data.message || '拉取失败';
+          hint.className = 'mt-1 text-[11px] text-rose-500';
+        }
+        return data;
+      } catch (e) {
+        if (!silent) {
+          hint.textContent = e.message || '拉取失败';
+          hint.className = 'mt-1 text-[11px] text-rose-500';
+        }
+        return null;
+      } finally {
+        if (!silent) $('btnFetchDomains').disabled = false;
+      }
+    }
+
+    async function loadConfig() {
+      try {
+        const data = await fetchJSON('/api/config');
+        const c = data.config || {};
+        $('cfgWorker').value = c.WORKER_DOMAIN || '';
+        $('cfgToken').value = c.FREEMAIL_TOKEN || '';
+        $('cfgYes').value = c.YESCAPTCHA_KEY || '';
+        $('cfgSolver').value = c.SOLVER_URL || 'http://127.0.0.1:5072';
+        $('cfgSolverThreads').value = c.SOLVER_THREADS || '2';
+        solverBrowserSelect._setValue(c.SOLVER_BROWSER || 'camoufox', true);
+        $('cfgUiHost').value = c.UI_HOST || '127.0.0.1';
+        $('cfgUiPort').value = c.UI_PORT || '3333';
+        if ($('cfgUpstreamUrl')) $('cfgUpstreamUrl').value = c.SUB2API_URL || c.UPSTREAM_URL || 'http://127.0.0.1:9898';
+        if ($('cfgSub2GroupId')) $('cfgSub2GroupId').value = c.SUB2API_GROK_GROUP_ID || '23';
+        if ($('cfgSub2GroupName')) $('cfgSub2GroupName').value = c.SUB2API_GROK_GROUP_NAME || 'grok';
+        if ($('cfgUpstreamEmail')) $('cfgUpstreamEmail').value = c.UPSTREAM_ADMIN_EMAIL || '';
+        if ($('cfgUpstreamPwd')) $('cfgUpstreamPwd').value = c.UPSTREAM_ADMIN_PASSWORD || '';
+        const mode = c.YESCAPTCHA_KEY ? 'yescaptcha' : 'local';
+        captchaSelect._setValue(mode, true);
+        $('yesCaptchaBlock').classList.toggle('hidden', mode !== 'yescaptcha');
+
+        const savedDomain = (c.FREEMAIL_DOMAIN || 'auto').trim() || 'auto';
+        mailDomainSelect._setOptions(buildDomainOptions(
+          savedDomain !== 'auto' ? [savedDomain] : [],
+          []
+        ), false);
+        mailDomainSelect._setValue(savedDomain, true);
+
+        setMessage($('configMessage'), '已加载当前配置', true);
+        if ($('upstreamTestMessage')) {
+          $('upstreamTestMessage').textContent = '';
+          $('upstreamTestMessage').className = 'text-[11px] font-mono min-h-[1.1rem] text-ink-700/50';
+        }
+        // 有 Worker 时自动拉取域名列表
+        if (c.WORKER_DOMAIN) {
+          fetchMailDomains(true).then((r) => {
+            if (r && r.ok) {
+              mailDomainSelect._setValue(savedDomain, true);
+            }
+          });
+        }
+      } catch (e) {
+        setMessage($('configMessage'), e.message || '加载失败', false);
+      }
+    }
+
+    async function refreshKeys() {
+      try {
+        const data = await fetchJSON('/api/keys');
+        const list = $('keysList');
+        if (!data.files || !data.files.length) {
+          list.innerHTML = '<li class="text-ink-700/50">暂无文件</li>';
+          return;
+        }
+        list.innerHTML = data.files.map(f => {
+          const canImport = state.upstreamConfigured && !state.importing;
+          return `
+          <li class="flex items-center justify-between gap-2 rounded-xl border border-ink-900/5 bg-paper-50 px-3 py-2">
+            <div class="min-w-0">
+              <div class="truncate text-ink-900 font-semibold">${escapeHtml(f.name)}</div>
+              <div class="text-ink-700/45">${f.count} keys · ${Math.round(f.size / 1024 * 10) / 10} KB</div>
+            </div>
+            <div class="shrink-0 flex items-center gap-3">
+              <button type="button"
+                class="btn-import-file text-[11px] font-semibold ${canImport ? 'text-brand-600 hover:underline' : 'text-ink-700/30 cursor-not-allowed'}"
+                data-file="${escapeHtml(f.name)}"
+                ${canImport ? '' : 'disabled'}>导入 sub2api</button>
+              <a class="text-brand-600 hover:underline font-semibold" href="/${escapeHtml(f.path)}" download>下载</a>
+            </div>
+          </li>`;
+        }).join('');
+      } catch (e) {
+        $('keysList').innerHTML = `<li class="text-rose-500">${escapeHtml(e.message)}</li>`;
+      }
+    }
+
+    /* ---------- Events ---------- */
+    $('startForm').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      if (state.starting || state.running) {
+        setMessage($('formMessage'), '任务已在运行或启动中', false);
+        return;
+      }
+      let workers = Number($('workers').value || 8);
+      let target = Number($('targetCustom').value || $('target').value || 100);
+      state.starting = true;
+      $('btnStart').disabled = true;
+      setMessage($('formMessage'), '正在启动...', true);
+      try {
+        const data = await fetchJSON('/api/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workers, target }),
+        });
+        setMessage($('formMessage'), data.message || '已启动', true);
+        renderStatus(data);
+        refreshKeys();
+        pollOnce();
+      } catch (e) {
+        setMessage($('formMessage'), e.message || '启动失败', false);
+        $('btnStart').disabled = false;
+      } finally {
+        state.starting = false;
+      }
+    });
+
+    $('btnStop').addEventListener('click', async () => {
+      try {
+        const data = await fetchJSON('/api/stop', { method: 'POST' });
+        setMessage($('formMessage'), data.message || '已停止', true);
+        renderStatus(data);
+      } catch (e) {
+        setMessage($('formMessage'), e.message || '停止失败', false);
+      }
+    });
+
+    $('configForm').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const captchaMode = $('captchaMode').value;
+      const payload = {
+        WORKER_DOMAIN: $('cfgWorker').value.trim(),
+        FREEMAIL_TOKEN: $('cfgToken').value.trim(),
+        FREEMAIL_DOMAIN: ($('cfgMailDomain').value || 'auto').trim() || 'auto',
+        YESCAPTCHA_KEY: captchaMode === 'yescaptcha' ? $('cfgYes').value.trim() : '',
+        SOLVER_URL: $('cfgSolver').value.trim() || 'http://127.0.0.1:5072',
+        SOLVER_BROWSER: $('cfgSolverBrowser').value || 'camoufox',
+        SOLVER_THREADS: $('cfgSolverThreads').value.trim() || '2',
+        UI_HOST: $('cfgUiHost').value.trim() || '127.0.0.1',
+        UI_PORT: $('cfgUiPort').value.trim() || '3333',
+        SUB2API_URL: ($('cfgUpstreamUrl') && $('cfgUpstreamUrl').value.trim()) || 'http://127.0.0.1:9898',
+        SUB2API_GROK_GROUP_ID: ($('cfgSub2GroupId') && $('cfgSub2GroupId').value.trim()) || '',
+        SUB2API_GROK_GROUP_NAME: ($('cfgSub2GroupName') && $('cfgSub2GroupName').value.trim()) || 'grok',
+        UPSTREAM_URL: ($('cfgUpstreamUrl') && $('cfgUpstreamUrl').value.trim()) || 'http://127.0.0.1:9898',
+        UPSTREAM_ADMIN_EMAIL: ($('cfgUpstreamEmail') && $('cfgUpstreamEmail').value.trim()) || '',
+        UPSTREAM_ADMIN_PASSWORD: ($('cfgUpstreamPwd') && $('cfgUpstreamPwd').value) || '',
+        captcha_mode: captchaMode,
+      };
+      if (!payload.WORKER_DOMAIN || !payload.FREEMAIL_TOKEN) {
+        setMessage($('configMessage'), 'WORKER_DOMAIN 与 FREEMAIL_TOKEN 为必填', false);
+        return;
+      }
+      setMessage($('configMessage'), '保存中...', true);
+      $('btnSaveConfig').disabled = true;
+      const t0 = performance.now();
+      try {
+        const data = await fetchJSON('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const ms = Math.round(performance.now() - t0);
+        setMessage($('configMessage'), `${data.message || '已保存'}（${ms}ms）`, true);
+        if (data.upstream_test && $('upstreamTestMessage')) {
+          const ut = data.upstream_test;
+          $('upstreamTestMessage').textContent = ut.message || '';
+          $('upstreamTestMessage').className = `text-[11px] font-mono min-h-[1.1rem] ${ut.ok ? 'text-leaf-600' : 'text-rose-500'}`;
+        }
+        // 用返回的 env 立刻刷新侧栏，不必再等一轮 status（避免与轮询抢请求）
+        if (data.env) {
+          renderStatus({ ...(state.lastStatus || {}), env: data.env, status: (state.lastStatus && state.lastStatus.status) || 'idle' });
+        }
+      } catch (e) {
+        setMessage($('configMessage'), e.message || '保存失败', false);
+      } finally {
+        $('btnSaveConfig').disabled = false;
+      }
+    });
+
+    async function testUpstream() {
+      const msg = $('upstreamTestMessage');
+      const btn = $('btnTestUpstream');
+      if (btn) btn.disabled = true;
+      if (msg) {
+        msg.textContent = '测试中…';
+        msg.className = 'text-[11px] font-mono min-h-[1.1rem] text-ink-700/50';
+      }
+      try {
+        const data = await fetchJSON('/api/upstream/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            SUB2API_URL: ($('cfgUpstreamUrl') && $('cfgUpstreamUrl').value.trim()) || '',
+            UPSTREAM_URL: ($('cfgUpstreamUrl') && $('cfgUpstreamUrl').value.trim()) || '',
+            UPSTREAM_ADMIN_EMAIL: ($('cfgUpstreamEmail') && $('cfgUpstreamEmail').value.trim()) || '',
+            UPSTREAM_ADMIN_PASSWORD: ($('cfgUpstreamPwd') && $('cfgUpstreamPwd').value) || '',
+            SUB2API_GROK_GROUP_ID: ($('cfgSub2GroupId') && $('cfgSub2GroupId').value.trim()) || '',
+            SUB2API_GROK_GROUP_NAME: ($('cfgSub2GroupName') && $('cfgSub2GroupName').value.trim()) || '',
+          }),
+        });
+        if (msg) {
+          msg.textContent = data.message || (data.ok ? '连通正常' : '失败');
+          msg.className = `text-[11px] font-mono min-h-[1.1rem] ${data.ok ? 'text-leaf-600' : 'text-rose-500'}`;
+        }
+      } catch (e) {
+        if (msg) {
+          msg.textContent = e.message || '测试失败';
+          msg.className = 'text-[11px] font-mono min-h-[1.1rem] text-rose-500';
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    function applyImportJob(job) {
+      if (!job) return;
+      const running = !!job.running || job.status === 'running';
+      state.importing = running;
+      if (running) state.importJobId = job.id || state.importJobId;
+
+      const total = job.total || 0;
+      const done = job.done || 0;
+      const okN = job.success || 0;
+      const failN = job.fail || 0;
+      const cur = job.current ? ` · ${job.current}` : '';
+      const src = job.source ? ` · ${job.source}` : '';
+
+      if (running) {
+        setMessage(
+          $('importMessage'),
+          job.message || `导入中 ${done}/${total}${cur}${src}`,
+          true
+        );
+        if ($('btnImportAll')) {
+          $('btnImportAll').disabled = true;
+          $('btnImportAll').textContent = total
+            ? `导入中 ${done}/${total}`
+            : '导入中…';
+        }
+        return;
+      }
+
+      if (job.status === 'done' || job.status === 'error') {
+        const finId = job.id || 'done';
+        if (state.importFinishedToastId !== finId) {
+          state.importFinishedToastId = finId;
+          const res = job.result || {};
+          const msg = res.message || job.message || '导入完成';
+          const okish = job.status === 'done' || okN > 0;
+          setMessage(
+            $('importMessage'),
+            `${msg}（成功 ${okN} / 失败 ${failN}${src}）`,
+            okish
+          );
+          showToast(
+            `导入完成：成功 ${okN} / 失败 ${failN}${src}`,
+            failN > 0 && okN === 0 ? 'err' : failN > 0 ? 'warn' : 'ok',
+            6000
+          );
+          refreshKeys();
+          if (job.recent_success && state.lastStatus) {
+            state.lastStatus.recent_success = job.recent_success;
+          }
+        } else if (job.message) {
+          setMessage(
+            $('importMessage'),
+            `${job.message}（成功 ${okN} / 失败 ${failN}${src}）`,
+            job.status === 'done' || okN > 0
+          );
+        }
+      }
+    }
+
+    async function importToUpstream(ids, opts) {
+      if (state.importing) return;
+      if (!state.upstreamConfigured) {
+        setMessage($('importMessage'), '请先在「配置」填写 sub2api 地址并保存', false);
+        return;
+      }
+      opts = opts || {};
+      state.importing = true;
+      if ($('btnImportAll')) {
+        $('btnImportAll').disabled = true;
+        $('btnImportAll').textContent = '导入中…';
+      }
+      const tip = opts.file
+        ? `正在从文件导入 sub2api：${opts.file}…`
+        : '正在导入 sub2api（有缓存 token 则直写，否则再换票）…';
+      setMessage($('importMessage'), tip, true);
+      try {
+        // 前台同步：等接口跑完再返回结果
+        const body = { merge: true, async: false };
+        if (opts.file) body.file = opts.file;
+        else if (ids && ids.length) body.ids = ids;
+        else body.all = true;
+        const data = await fetchJSON('/api/upstream/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const src = data.source ? ` · ${data.source}` : '';
+        const submitted = data.submitted != null ? `（提交 ${data.submitted}）` : '';
+        const okN = data.success ?? 0;
+        const failN = data.fail ?? 0;
+        const okish = !!data.ok || okN > 0;
+        setMessage(
+          $('importMessage'),
+          (data.message || '导入完成') + submitted + src,
+          okish
+        );
+        showToast(
+          `导入完成：成功 ${okN} / 失败 ${failN}${submitted}${src}`,
+          failN > 0 && okN === 0 ? 'err' : failN > 0 ? 'warn' : 'ok',
+          6000
+        );
+        state.importing = false;
+        if (data.recent_success) {
+          const next = {
+            ...(state.lastStatus || {}),
+            recent_success: data.recent_success,
+            env: (state.lastStatus && state.lastStatus.env) || undefined,
+            status: (state.lastStatus && state.lastStatus.status) || 'idle',
+          };
+          renderStatus(next);
+        } else {
+          pollOnce();
+        }
+        refreshKeys();
+      } catch (e) {
+        state.importing = false;
+        const msg = (e.data && e.data.message) || e.message || '导入失败';
+        setMessage($('importMessage'), msg, false);
+        showToast(msg, 'err', 6000);
+        if (state.lastStatus) renderStatus(state.lastStatus);
+        refreshKeys();
+      }
+    }
+
+    if ($('btnTestUpstream')) {
+      $('btnTestUpstream').addEventListener('click', testUpstream);
+    }
+    if ($('btnImportAll')) {
+      $('btnImportAll').addEventListener('click', () => importToUpstream(null));
+    }
+    if ($('successList')) {
+      $('successList').addEventListener('click', (ev) => {
+        const btn = ev.target.closest('.btn-import-one');
+        if (!btn || btn.disabled) return;
+        const id = btn.getAttribute('data-id');
+        if (id) importToUpstream([id]);
+      });
+    }
+    if ($('keysList')) {
+      $('keysList').addEventListener('click', (ev) => {
+        const btn = ev.target.closest('.btn-import-file');
+        if (!btn || btn.disabled) return;
+        const file = btn.getAttribute('data-file');
+        if (file) importToUpstream(null, { file });
+      });
+    }
+
+    $('btnReloadConfig').addEventListener('click', loadConfig);
+    $('btnRefreshKeys').addEventListener('click', refreshKeys);
+    $('btnFetchDomains').addEventListener('click', () => fetchMailDomains(false));
+
+    $('btnSolverStart').addEventListener('click', async () => {
+      $('btnSolverStart').disabled = true;
+      $('solverMessage').textContent = '正在启动 Solver（首次可能较慢）…';
+      try {
+        const data = await fetchJSON('/api/solver/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wait: true, timeout: 120 }),
+        });
+        renderSolver(data);
+        $('solverMessage').textContent = data.message || '已启动';
+      } catch (e) {
+        $('solverMessage').textContent = e.message || '启动失败';
+        $('btnSolverStart').disabled = false;
+      }
+    });
+
+    $('btnSolverStop').addEventListener('click', async () => {
+      $('btnSolverStop').disabled = true;
+      $('solverMessage').textContent = '正在停止…';
+      try {
+        const data = await fetchJSON('/api/solver/stop', { method: 'POST' });
+        renderSolver(data);
+        $('solverMessage').textContent = data.message || '已停止';
+      } catch (e) {
+        $('solverMessage').textContent = e.message || '停止失败';
+        $('btnSolverStop').disabled = false;
+      }
+    });
+
+    $('btnClearLogs').addEventListener('click', async () => {
+      try {
+        await fetchJSON('/api/logs/clear', { method: 'POST' });
+        $('logBox').innerHTML = '<div class="text-ink-700/40">日志已清空</div>';
+        state.afterId = 0;
+        state.seenLogIds = new Set();
+      } catch (e) {
+        setMessage($('formMessage'), e.message, false);
+      }
+    });
+
+    document.querySelectorAll('.toggle-eye').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const input = $(btn.dataset.target);
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.textContent = show ? '隐藏' : '显示';
+      });
+    });
+
+    // boot
+    pollOnce();
+    loadConfig();
+    refreshKeys();
+    setInterval(pollOnce, 1200);
+  </script>
+</body>
+</html>

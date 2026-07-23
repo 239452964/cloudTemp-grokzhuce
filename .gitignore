@@ -1,5 +1,7 @@
 # 环境配置（包含私人信息）
 .env
+.env.*
+!.env.example
 
 # Python
 __pycache__/
@@ -15,6 +17,18 @@ __pycache__/
 
 # 项目特定
 keys/
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+*.pem
+*.key
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
 .ace-tool/
 .claude/
 .playwright-mcp/

@@ -7,6 +7,18 @@ import logging
 import asyncio
 from typing import Optional, Union
 import argparse
+
+# Windows 控制台 GBK 下避免 emoji / rich 编码崩溃
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+os.environ.setdefault("PYTHONUTF8", "1")
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 from quart import Quart, request, jsonify
 from camoufox.async_api import AsyncCamoufox
 from patchright.async_api import async_playwright
@@ -72,13 +84,18 @@ class TurnstileAPIServer:
         self.use_random_config = use_random_config
         self.browser_name = browser_name
         self.browser_version = browser_version
-        self.console = Console()
-        
+        # force_terminal=False：重定向到日志文件时不因 emoji/编码崩掉 lifespan
+        self.console = Console(
+            force_terminal=False,
+            emoji=False,
+            highlight=False,
+            soft_wrap=True,
+        )
+
         # Initialize useragent and sec_ch_ua attributes
         self.useragent = useragent
         self.sec_ch_ua = None
-        
-        
+
         if self.browser_type in ['chromium', 'chrome', 'msedge']:
             if browser_name and browser_version:
                 config = browser_config.get_browser_config(browser_name, browser_version)
@@ -94,7 +111,7 @@ class TurnstileAPIServer:
                 self.browser_version = version
                 self.useragent = useragent
                 self.sec_ch_ua = sec_ch_ua
-        
+
         self.browser_args = []
         if self.useragent:
             self.browser_args.append(f"--user-agent={self.useragent}")
@@ -103,16 +120,20 @@ class TurnstileAPIServer:
 
     def display_welcome(self):
         """Displays welcome screen with logo."""
-        self.console.clear()
-        
+        try:
+            self.console.clear()
+        except Exception:
+            pass
+
+        # 不用 emoji，避免 Windows GBK / 重定向日志编码失败
         combined_text = Text()
-        combined_text.append("\n📢 Channel: ", style="bold white")
+        combined_text.append("\nChannel: ", style="bold white")
         combined_text.append("https://t.me/D3_vin", style="cyan")
-        combined_text.append("\n💬 Chat: ", style="bold white")
+        combined_text.append("\nChat: ", style="bold white")
         combined_text.append("https://t.me/D3vin_chat", style="cyan")
-        combined_text.append("\n📁 GitHub: ", style="bold white")
+        combined_text.append("\nGitHub: ", style="bold white")
         combined_text.append("https://github.com/D3-vin", style="cyan")
-        combined_text.append("\n📁 Version: ", style="bold white")
+        combined_text.append("\nVersion: ", style="bold white")
         combined_text.append("1.2a", style="green")
         combined_text.append("\n")
 
@@ -126,8 +147,12 @@ class TurnstileAPIServer:
             width=50
         )
 
-        self.console.print(info_panel)
-        self.console.print()
+        try:
+            self.console.print(info_panel)
+            self.console.print()
+        except Exception:
+            # 启动欢迎页失败不影响 HTTP 服务
+            pass
 
 
 
@@ -727,11 +752,11 @@ class TurnstileAPIServer:
             
             await self._inject_captcha_directly(page, sitekey, action or '', cdata or '', index)
             
-            # Ждем время для загрузки и рендеринга виджета
-            await asyncio.sleep(3)
+            # 原先固定睡 3s 太肥：改 1.0s 起步，token 好了立刻拿走
+            await asyncio.sleep(1.0)
 
             locator = page.locator('input[name="cf-turnstile-response"]')
-            max_attempts = 30
+            max_attempts = 36
             click_count = 0
             max_clicks = 10
 
@@ -778,7 +803,8 @@ class TurnstileAPIServer:
                                     logger.debug(f"Browser {index}: Token element {i} check failed: {str(e)}")
                                 continue
 
-                    if attempt > 2 and attempt % 3 == 0 and click_count < max_clicks:
+                    # 更早尝试点击（原先 attempt>2 才点，白白多等一轮）
+                    if attempt >= 1 and attempt % 2 == 0 and click_count < max_clicks:
                         click_success = await self._try_click_strategies(page, index)
                         click_count += 1
                         if click_success and self.debug:
@@ -786,8 +812,8 @@ class TurnstileAPIServer:
                         elif not click_success and self.debug:
                             logger.debug(f"Browser {index}: All click strategies failed on attempt {attempt + 1} (click #{click_count}/{max_clicks})")
 
-                    # Адаптивное ожидание
-                    wait_time = min(0.5 + (attempt * 0.05), 2.0)
+                    # 更快轮询：0.25s 起，上限 1.2s（原先 0.5~2.0）
+                    wait_time = min(0.25 + (attempt * 0.04), 1.2)
                     await asyncio.sleep(wait_time)
 
                     if self.debug and attempt % 5 == 0:

@@ -2,3 +2,9 @@ curl_cffi
 beautifulsoup4
 python-dotenv
 requests
+flask
+# Turnstile Solver（本地）
+quart>=0.19
+rich>=13
+camoufox[geoip]
+patchright
